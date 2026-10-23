@@ -643,7 +643,28 @@ small,
 }
 .crypto-panel {
   margin-top: 14px;
-  padding: 18px;
+  padding: 14px;
+}
+.crypto-panel .section-heading {
+  margin-bottom: 8px;
+}
+.crypto-panel .table-scroll {
+  max-height: min(220px, 40vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #247e9b #061a2c;
+}
+.crypto-panel th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #071a2c;
+}
+.crypto-panel td,
+.crypto-panel th {
+  padding: 6px 10px;
 }
 .crypto-panel h2 {
   color: #a2f9ff;

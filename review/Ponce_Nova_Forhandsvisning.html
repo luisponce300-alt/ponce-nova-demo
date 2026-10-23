@@ -652,7 +652,28 @@ small,
 }
 .crypto-panel {
   margin-top: 14px;
-  padding: 18px;
+  padding: 14px;
+}
+.crypto-panel .section-heading {
+  margin-bottom: 8px;
+}
+.crypto-panel .table-scroll {
+  max-height: min(220px, 40vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #247e9b #061a2c;
+}
+.crypto-panel th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #071a2c;
+}
+.crypto-panel td,
+.crypto-panel th {
+  padding: 6px 10px;
 }
 .crypto-panel h2 {
   color: #a2f9ff;
@@ -2515,7 +2536,7 @@ loadMarket();
 </script>
   </head>
   <body>
-<aside class="review-banner" aria-label="Förhandsvisning">FÖRHANDSVISNING · PR #2 · Kodversion 3a642fc5290d · Separat testlagring · Ingen livehandel eller publicering</aside>
+<aside class="review-banner" aria-label="Förhandsvisning">FÖRHANDSVISNING · PR #2 · Kodversion f1388f44f1d7 · Separat testlagring · Ingen livehandel eller publicering</aside>
     <a class="skip" href="#dashboard">Till dashboard</a>
     <div class="city" aria-hidden="true">
       <div class="skyline" id="skyline"></div>
