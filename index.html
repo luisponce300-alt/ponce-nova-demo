@@ -35,7 +35,8 @@
           <p>AI TRADING HQ / PIXEL CITY</p>
         </div>
         <div class="mode">
-          ● Lokal simulering · Ingen livehandel
+          <span id="runtime-status">● Lokal simulering · Ingen livehandel</span>
+          <button data-action="agents">Alla agenter</button>
           <button data-action="office">Visa kontoret</button>
           <button id="motion" aria-pressed="false">Pausa stad</button>
         </div>
@@ -113,7 +114,7 @@
               <div class="wave" aria-hidden="true">▂▃▅▃▆▅▇▃▅▆▃▂</div>
               <div class="agent-stats">
                 <h3>AGENTER & ANALYS</h3>
-                <p>◉ <b>2</b> lokala assistentroller</p>
+                <p>◉ <b>7</b> definierade agentroller</p>
                 <p>↻ <b id="analysis-count">0</b> analyser denna session</p>
                 <p>◇ <b id="decision-count">0</b> paper-order lokalt</p>
               </div>
@@ -144,6 +145,16 @@
             aria-label="Chattmeddelanden"
             aria-live="polite"
           ></div>
+          <div id="chat-ai-controls" hidden>
+            <label
+              ><input id="use-ai" type="checkbox" /> AI-svar (OpenAI)</label
+            >
+            <label
+              >Agent
+              <select id="chat-agent" aria-label="Agent för AI-svar"></select
+            ></label>
+          </div>
+          <p id="ai-status" class="micro" role="status"></p>
           <form id="chat" class="chatrow">
             <button
               type="button"
@@ -171,7 +182,7 @@
               ♩ Prata med Nova
             </button>
           </div>
-          <p class="micro">
+          <p class="micro" id="chat-note">
             Lokal chatt · Regelbaserade svar, ingen ansluten AI. Sparas i denna
             webbläsare.
           </p>
@@ -349,7 +360,7 @@
         </div>
       </section>
       <footer>
-        <p>
+        <p id="mode-note">
           Ingen verklig handel eller ansluten AI. Paper trading saknar avgifter,
           spread och slippage. Nya pooler innebär särskilt hög risk.
         </p>
@@ -359,6 +370,9 @@
         ><button class="text-button" data-action="privacy">
           Lagring & integritet</button
         ><span id="storage-status" role="status"></span>
+        <form id="logout" method="post" action="/logout" hidden>
+          <button>Logga ut från testmiljön</button>
+        </form>
       </footer>
     </main>
     <dialog id="dialog" aria-labelledby="dialog-title">

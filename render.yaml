@@ -1,0 +1,28 @@
+# Separate preview only. This never changes the existing GitHub Pages service.
+services:
+  - type: web
+    name: ponce-nova-test
+    runtime: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/luisponce300-alt/ponce-nova-demo
+    branch: feature/issue-1-interactive-dashboard
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --ignore-scripts
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 24.19.0
+      - key: PREVIEW_PASSWORD
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: gpt-4.1-mini
+      - key: MAX_AGENT_RUNS_PER_HOUR
+        value: 20

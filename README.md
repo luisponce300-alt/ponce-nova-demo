@@ -2,13 +2,17 @@
 
 An interactive, static dashboard based on the supplied `Ponce_Nova_Godkand_Design(1).html` and Issue #1. The approved order of all 16 panels, portraits, cyan glass styling, five departments, chat channels, agent tools, meeting controls, voice controls and bottom summaries are retained. The aurora background is replaced by a CSS pixel city and office with meeting room, café, toilets, AI lab and moving characters. Reduced motion and a pause button are supported.
 
-The dashboard is HTML/CSS/JavaScript, not a screenshot with hotspots. `assets/approved-design.jpg` is the supplied reference JPEG, used **only for CSS portrait crops**. No illustrative balances, market charts, risk values or messages from that image are presented as real data. Index/gold feeds and the economic calendar remain explicitly disconnected.
+The dashboard is HTML/CSS/JavaScript, not a screenshot with hotspots. An optional authenticated Node server and Render Blueprint now support seven on-demand AI roles and a server-side market proxy; see [Render setup](docs/RENDER.md). Static/download mode remains local-only. No Render service or real AI connection is implied by the presence of configuration files. `assets/approved-design.jpg` is the supplied reference JPEG, used **only for CSS portrait crops**. No illustrative balances, market charts, risk values or messages from that image are presented as real data. Index/gold feeds and the economic calendar remain explicitly disconnected.
 
 ## Downloadable review
 
 For a browser review without a server or deployment, download [`review/Ponce_Nova_Forhandsvisning.html`](review/Ponce_Nova_Forhandsvisning.html) using GitHub's **Download raw file** button and open it locally. See [Swedish review instructions](review/README.md). The file embeds the same application code/styles/portraits, uses a separate local-storage key and fetches real public APIs rather than bundled test prices. Regenerate with `python3 tools/build_review.py` and verify with `python3 tests/review_test.py`. This is a local review artifact, not a hosted preview or publication. Native live API fetching in the cloud browser retains the certificate limitation described below.
 
-## Run locally
+## Run the optional private server
+
+See [Render setup and secure environment requirements](docs/RENDER.md). `npm ci --ignore-scripts` and `npm start` run the dependency-free Node server after a strong `PREVIEW_PASSWORD` and `SESSION_SECRET` are injected. No credentials belong in this repository. `npm test` covers both core and server tests; `python3 tests/server_browser_test.py` covers login and agent flows with test-only provider responses. Actual AI access and Render deployment still require secure configuration and live verification.
+
+## Run locally (static mode)
 
 No application dependencies, secrets, package installation, build or backend are required. Use a static HTTP server; ES modules should not be opened using `file://`.
 
@@ -33,7 +37,7 @@ On other machines, run the command from the checkout directory. Visit the server
 - Search within fetched tokens, category selection, source/error/freshness details, and movement-based watchlists.
 - Local paper trading starts with **10,000 simulated USD**, with explicit USD units rather than applying an invented SEK conversion. Buy/sell, fractional quantities, cash/inventory validation, average-cost realized P/L, position valuation, winning/losing sell counts, history, a price-shock scenario and JSON report export work locally.
 - Valuation becomes unavailable if any held position lacks a fresh quote. Refresh the corresponding token category after reopening the page; quotes are deliberately not persisted. There are no fees, spreads, slippage, market depth, short selling or live orders. Maximum 1,000 local orders per simulation.
-- Shared and agent chat channels persist locally. `/hjälp`, `/saldo`, `/analys`, `/risk`, `/möte` produce deterministic local responses. Other messages are notes. Agent/team/board meetings write Ponce's analysis and Nova's concentration review into the agent channel. There is **no connected LLM, autonomous agent, machine learning or automatic trading**.
+- Shared and agent chat channels persist locally. `/hjälp`, `/saldo`, `/analys`, `/risk`, `/möte` produce deterministic local responses. Other messages are notes. Agent/team/board meetings write Ponce's analysis and Nova's concentration review into the agent channel. In static mode there is **no connected LLM**. In the optional server preview, explicitly selected AI replies use the server-side OpenAI integration. There are no autonomous background agents, model training or automatic trading.
 - Voice buttons offer optional browser speech recognition where supported; they only create a draft for manual sending. Recognition may use the browser vendor's remote services; this is disclosed before microphone activation. Browser speech synthesis can read an existing agent reply. Unsupported browsers get an explicit explanation and can use text chat.
 - Risk checks expose concentration (25% watch threshold) and missing data. They do not claim a verified low-risk classification, news analysis or full risk model.
 - Native modal dialogs support keyboard navigation, Escape and focus return. Text from users/providers is inserted as text, never HTML.

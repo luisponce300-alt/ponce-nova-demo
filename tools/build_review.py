@@ -13,7 +13,7 @@ def data_url(relative, media_type):
 
 
 def build():
-    inputs = ['index.html', 'styles.css', 'core.js', 'app.js', 'assets/approved-design.jpg', 'assets/favicon.svg']
+    inputs = ['index.html', 'styles.css', 'core.js', 'agents.js', 'app.js', 'assets/approved-design.jpg', 'assets/favicon.svg']
     digest = hashlib.sha256()
     for name in inputs:
         digest.update(name.encode())
@@ -28,6 +28,9 @@ def build():
     app, replacements = re.subn(r'^import\s*\{[^}]+\}\s*from\s*"\./core\.js";\s*', '', (ROOT / 'app.js').read_text(), count=1)
     if replacements != 1:
         raise ValueError('Expected exactly one core import')
+    app = re.sub(r'^import \{ AGENTS \} from "\./agents\.js";\s*', '', app, count=1)
+    app = app.replace('const SERVER_FEATURES_ENABLED = true;', 'const SERVER_FEATURES_ENABLED = false;')
+    core = re.sub(r'^export ', '', (ROOT / 'agents.js').read_text(), flags=re.MULTILINE) + '\n' + core
     if 'const KEY = "ponce-nova:v1";' not in app:
         raise ValueError('Unexpected storage key')
     app = app.replace('const KEY = "ponce-nova:v1";', 'const KEY = "ponce-nova:review:v1";')

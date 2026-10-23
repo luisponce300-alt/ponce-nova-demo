@@ -1349,3 +1349,32 @@ dialog::backdrop {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+.agent-directory {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+#chat-ai-controls {
+  font-size: 11px;
+  margin: 8px 0;
+}
+#chat-ai-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#chat-ai-controls select {
+  padding: 4px;
+  max-width: 180px;
+}
+#chat-ai-controls input {
+  width: auto;
+}
+#chat-ai-controls[hidden],
+#logout[hidden] {
+  display: none;
+}
+#ai-status:empty {
+  display: none;
+}
