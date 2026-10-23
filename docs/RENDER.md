@@ -60,3 +60,13 @@ python3 tests/server_browser_test.py
 Server- och AI-tester använder uttryckliga testcredentials och stubbade provider-svar; det är inte bevis på ett riktigt OpenAI-anrop. Riktiga TLS-verifierade marknadssvar har däremot verifierats genom Node-serverns proxy. Molnmaskinens Node-process behöver `NODE_USE_ENV_PROXY=1` för dessa externa anrop; Render behöver normalt inte denna inställning. Inga riktiga hemligheter ska användas för att köra de lokala testsuiterna.
 
 Efter att Render är anslutet: verifiera tjänstens branch, plan och domän, bygg, hämta `/healthz`, kontrollera att root kräver login, logga in utan att exponera lösenordet, prova marknadsdata, ett riktigt AI-svar och paper trading. Kontrollera att main och Pages-inställningar är oförändrade. Rapporterad readiness ska skilja mellan lokala stubtester, verkliga upstream-anrop och faktisk Render-deployment. Miljön är inte online eller verkligt AI-verifierad förrän detta har lyckats.
+
+## Deployed preview — 2026-10-23
+
+Render API access was successfully verified using the existing user-supplied vault binding, which used a different variable name from the originally requested `RENDER_API_TOKEN`. The existing binding was reused without printing its name/value or requesting a duplicate.
+
+A NEW Free/Frankfurt service was created: `ponce-nova-test`, service ID `srv-dbdntugae00c738rqj6g`, URL `https://ponce-nova-test.onrender.com`, dashboard `https://dashboard.render.com/web/srv-dbdntugae00c738rqj6g`. Deployment `dep-dbdntvgae00c738rqm80` is reported **live** by Render for commit `30300c37854b6bdaef2b123fc8f4e67c7a47b3ad`. Branch remains `feature/issue-1-interactive-dashboard`, auto-deploy `no`, plan `free`, service not suspended. The pre-existing unrelated service was not changed.
+
+`PREVIEW_PASSWORD` and `SESSION_SECRET` were generated securely during creation and stored only in Render. The owner can reveal `PREVIEW_PASSWORD` in the service's **Environment** tab to log in. No password was printed or committed. **AI_API_KEY is absent**, so real AI replies are not enabled. Supply that key directly in Render's protected service settings and redeploy/restart, then verify one actual AI response before claiming AI readiness.
+
+Direct external checks from this cloud machine currently receive a network-proxy `403 Forbidden` for the new onrender.com hostname. The exact hostname has been added to the environment network draft, but a draft does not apply runtime access. Render's live deployment status and configuration were verified through its API; independent external HTTP/login checks remain pending. Local authenticated browser/server tests and real upstream market-data rendering passed earlier. Main and the production Pages site remain unchanged.
