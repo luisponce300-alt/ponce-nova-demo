@@ -4,6 +4,10 @@ An interactive, static dashboard based on the supplied `Ponce_Nova_Godkand_Desig
 
 The dashboard is HTML/CSS/JavaScript, not a screenshot with hotspots. `assets/approved-design.jpg` is the supplied reference JPEG, used **only for CSS portrait crops**. No illustrative balances, market charts, risk values or messages from that image are presented as real data. Index/gold feeds and the economic calendar remain explicitly disconnected.
 
+## Downloadable review
+
+For a browser review without a server or deployment, download [`review/Ponce_Nova_Forhandsvisning.html`](review/Ponce_Nova_Forhandsvisning.html) using GitHub's **Download raw file** button and open it locally. See [Swedish review instructions](review/README.md). The file embeds the same application code/styles/portraits, uses a separate local-storage key and fetches real public APIs rather than bundled test prices. Regenerate with `python3 tools/build_review.py` and verify with `python3 tests/review_test.py`. This is a local review artifact, not a hosted preview or publication. Native live API fetching in the cloud browser retains the certificate limitation described below.
+
 ## Run locally
 
 No application dependencies, secrets, package installation, build or backend are required. Use a static HTTP server; ES modules should not be opened using `file://`.
