@@ -366,6 +366,7 @@ small,
   display: flex;
   flex-direction: column;
   padding: 11px;
+  min-height: 0;
 }
 .chat-tabs {
   display: flex;
@@ -389,9 +390,12 @@ small,
 }
 .messages {
   height: 205px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 170px;
+  max-height: 45vh;
+  overflow-y: scroll;
+  flex: 0 0 auto;
+  min-height: 140px;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
   padding: 10px 2px;
   scrollbar-color: #247e9b #061a2c;
 }
@@ -699,6 +703,19 @@ small,
 .filter-row input {
   font-size: 12px;
   padding: 7px;
+}
+#auto-market {
+  width: auto;
+  flex: 0 0 auto;
+}
+#trade-costs {
+  width: auto;
+  margin-right: 8px;
+}
+.form-grid label:has(#trade-costs) {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
 }
 #data-status {
   font-size: 12px;

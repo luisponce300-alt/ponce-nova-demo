@@ -102,22 +102,25 @@ export function applyTrade(wallet, trade) {
     ? next.positions[id]
     : { quantity: 0, cost: 0 };
   const amount = quantity * price;
+  const fee = trade.fee ?? 0; // Existing saved orders retain their original zero costs.
+  if (!Number.isFinite(fee) || fee < 0 || fee > amount)
+    throw new Error("Ogiltig simulerad avgift.");
   if (side === "buy") {
-    if (amount > next.cash) throw new Error("Otillräckligt simulerat saldo.");
-    next.cash -= amount;
+    if (amount + fee > next.cash) throw new Error("Otillräckligt simulerat saldo.");
+    next.cash -= amount + fee;
     next.positions[id] = {
       quantity: old.quantity + quantity,
-      cost: old.cost + amount,
+      cost: old.cost + amount + fee,
     };
   } else {
     if (quantity > old.quantity)
       throw new Error("Du kan inte sälja fler tokens än du äger.");
     const basis = old.cost * (quantity / old.quantity);
-    const result = amount - basis;
+    const result = amount - fee - basis;
     next.realized += result;
     next.wins += Number(result > 0);
     next.losses += Number(result < 0);
-    next.cash += amount;
+    next.cash += amount - fee;
     if (quantity === old.quantity) delete next.positions[id];
     else
       next.positions[id] = {
@@ -142,17 +145,25 @@ export function replayLedger(trades) {
     return applyTrade(wallet, trade);
   }, emptyWallet());
 }
-export function executeTrade(wallet, quote, side, quantity, now = Date.now()) {
+export function executeTrade(wallet, quote, side, quantity, now = Date.now(), costs = {}) {
   if (!quote?.tradable || !isFresh(quote, now))
     throw new Error(
       "Kursen saknas eller är äldre än fem minuter. Uppdatera data först.",
     );
+  const { feeBps = 0, slippageBps = 0 } = costs;
+  if (![feeBps, slippageBps].every((n) => Number.isFinite(n) && n >= 0 && n <= 100))
+    throw new Error("Ogiltiga simulerade handelskostnader.");
+  const price = quote.price * (1 + (side === "buy" ? 1 : -1) * slippageBps / 10000);
   const trade = {
     id: quote.id,
     symbol: quote.symbol,
     side,
     quantity,
-    price: quote.price,
+    price,
+    referencePrice: quote.price,
+    fee: quantity * price * feeBps / 10000,
+    feeBps,
+    slippageBps,
     time: now,
     quoteTime: quote.updated,
     source: quote.source,

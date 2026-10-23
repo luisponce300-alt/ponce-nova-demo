@@ -72,7 +72,8 @@ export async function createApp(options = {}) {
     loginsActive = 0,
     nextAgentAt = 0;
   const marketCache = new Map(),
-    pending = new Map();
+    pending = new Map(),
+    marketCooldown = new Map();
   const cookie = (value, age) =>
     `pn_session=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secure ? "; Secure" : ""}`;
   function token() {
@@ -144,6 +145,12 @@ export async function createApp(options = {}) {
       throw fail(404, "Okänd marknadskategori.");
     const cached = marketCache.get(category);
     if (cached && now() - cached.received < 60000) return cached;
+    const host = new URL(ENDPOINTS[category]).host;
+    const cooldown = marketCooldown.get(host);
+    if (cooldown && now() < cooldown.until)
+      throw Object.assign(fail(cooldown.status, "Datakällan är tillfälligt pausad. Tidigare kurser får inte betraktas som nya."), {
+        retryAfter: Math.ceil((cooldown.until - now()) / 1000),
+      });
     if (pending.has(category)) return pending.get(category);
     const promise = (async () => {
       let response;
@@ -155,11 +162,18 @@ export async function createApp(options = {}) {
       } catch {
         throw fail(502, "Marknadskällan kunde inte nås.");
       }
-      if (!response.ok)
-        throw fail(
+      if (!response.ok) {
+        const retryHeader = response.headers.get("Retry-After");
+        const retryMs = retryHeader && !/^\d+$/.test(retryHeader)
+          ? Date.parse(retryHeader) - now()
+          : Number(retryHeader) * 1000;
+        const wait = Math.min(900000, Math.max(60000, Number.isFinite(retryMs) ? retryMs : 0));
+        marketCooldown.set(host, { until: now() + wait, status: response.status === 429 ? 429 : 502 });
+        throw Object.assign(fail(
           response.status === 429 ? 429 : 502,
           `Marknadskällan svarade HTTP ${response.status}.`,
-        );
+        ), { retryAfter: Math.ceil(wait / 1000) });
+      }
       const text = await response.text();
       if (text.length > 3000000)
         throw fail(502, "Marknadssvaret var för stort.");
@@ -344,7 +358,7 @@ export async function createApp(options = {}) {
           error: error.status
             ? error.message
             : "Servern kunde inte hantera begäran.",
-        });
+        }, undefined, error.retryAfter ? { "Retry-After": String(error.retryAfter) } : {});
       else res.end();
     }
   });

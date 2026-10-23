@@ -59,6 +59,7 @@ class ReviewFileTests(unittest.TestCase):
     def test_separate_storage_buy_chat_and_reload(self):
         self.start()
         self.page.get_by_role('button',name='Paper-order',exact=True).click()
+        self.page.locator('#trade-costs').uncheck()
         self.page.locator('#trade-quantity').fill('2')
         self.page.get_by_role('button',name='Bekräfta simulerad order',exact=True).click()
         expect(self.page.locator('.form-result')).to_contain_text('genomförd')

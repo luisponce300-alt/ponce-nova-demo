@@ -354,3 +354,32 @@ test("unconfirmed Gemini free tier never calls any provider", async (t) => {
   assert.equal((await s.run({ agentId: "ponce", message: "Hej" })).status, 503);
   assert.equal(s.calls.length, 0);
 });
+
+test("market quota pauses shared CoinGecko host, preserves cached timestamps and respects Retry-After", async (t) => {
+  let time = NOW, calls = 0;
+  const s = await setup(t, {
+    now: () => time,
+    fetchImpl: async () => {
+      calls++;
+      return calls === 1 || calls === 3
+        ? Response.json(MARKET)
+        : new Response('{}', {status:429,headers:{'Retry-After':'180'}});
+    },
+  });
+  const first = await s.get('/api/market/large');
+  assert.equal(first.status,200);
+  assert.equal(first.headers.get('x-market-fetched-at'),String(NOW));
+  time += 61000;
+  const limited = await s.get('/api/market/small');
+  assert.equal(limited.status,429);
+  assert.equal(limited.headers.get('retry-after'),'180');
+  const blocked = await s.get('/api/market/large');
+  assert.equal(blocked.status,429);
+  assert.equal(calls,2);
+  time += 179000;
+  assert.equal((await s.get('/api/market/small')).status,429);
+  assert.equal(calls,2);
+  time += 1001;
+  assert.equal((await s.get('/api/market/large')).status,200);
+  assert.equal(calls,3);
+});

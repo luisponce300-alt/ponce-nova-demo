@@ -144,7 +144,9 @@
             role="log"
             aria-label="Chattmeddelanden"
             aria-live="polite"
+            tabindex="0"
           ></div>
+          <button id="chat-latest" class="text-button" type="button" hidden>↓ Till senaste meddelandet</button>
           <div id="chat-ai-controls" hidden>
             <label
               ><input id="use-ai" type="checkbox" /> AI-svar (<span
@@ -320,12 +322,13 @@
           <div>
             <h2 id="crypto-title">KRYPTO · MARKNADSBEVAKNING</h2>
             <p class="muted">
-              USD · Fördröjda offentliga data, inga garanterade realtidskurser
+              USD · Verkliga marknadsdata · automatisk hämtning cirka varje minut
             </p>
           </div>
           <button id="refresh">↻ Uppdatera data</button>
         </div>
         <div class="filter-row">
+          <label><input id="auto-market" type="checkbox" checked /> Uppdatera automatiskt</label>
           <div class="filters" role="group" aria-label="Tokenkategori">
             <button data-category="large" aria-pressed="true">
               Stora tokens</button
@@ -367,8 +370,9 @@
       </section>
       <footer>
         <p id="mode-note">
-          Ingen verklig handel eller ansluten AI. Paper trading saknar avgifter,
-          spread och slippage. Nya pooler innebär särskilt hög risk.
+          Ingen verklig handel. Paper trading använder offentliga referenskurser med
+          fördröjning och valbara simulerade kostnader, inga garanterade avslutspriser.
+          Nya pooler innebär särskilt hög risk.
         </p>
         <span
           >Källor: <a href="https://www.coingecko.com/">CoinGecko</a> ·

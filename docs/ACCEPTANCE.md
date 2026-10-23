@@ -81,3 +81,15 @@ After the owner supplied the Gemini key and confirmed Free tier, the protected l
 Validation: all 34 Node tests and seven authenticated browser tests pass. The request-shape test asserts the pinned new endpoint and omission of the legacy thinking-budget parameter. Main/Pages remain unchanged; only the separately authorized test service is redeployed.
 
 Live follow-up: deployment `dep-dbdrsbff3r2c73brh040` of application commit `db9445c` is live. Authenticated login/config returned HTTP 200 with seven roles, Google Gemini and free-test mode. A real `/api/agents/run` request for Nova returned HTTP 200, source Google Gemini, model gemini-3.8-flash and a coherent Swedish reply explaining its independent-review role and lack of real-trading authority. Market context was explicitly unavailable for this particular call; no current prices were invented. This verifies one real role call, not all roles or autonomous operation.
+
+## Automatic real crypto data and costed simulation — 2026-10-23
+
+The selected crypto view now polls real public data every 65 seconds while visible, with a pause checkbox, preserved provider/receipt timestamps, error backoff and server host-level Retry-After pauses. Paper trading defaults to declared 0.10% fees and a 0.05% adverse fill adjustment; historical zero-cost orders replay unchanged. Fee accounting and order previews/history/export are updated. No AI calls or real orders run automatically, and all panels including the compact scrolling crypto table remain.
+
+Validation: 37 Node tests, 12 static browser tests, 7 authenticated server/browser tests and 4 regenerated review-bundle tests passed (60 total). New checks cover loss/cost accounting, insufficient cash including fees, legacy ledger replay, automatic changed-price updates and pause/resume, preserved timestamps during failures and shared-provider quota cooldown. Live pre-change checks returned 30 real large-cap rows; small-cap/pool sources returned HTTP 429 and are not claimed available. See [market-data details and limits](MARKET_DATA.md).
+
+## Bounded scrolling chat — 2026-10-23
+
+Both chat channels now use a bounded, keyboard-focusable scroll region with a stable scrollbar gutter and contained wheel/touch scrolling. The composer and agent controls stay outside that region. New replies follow the bottom only when the reader was already there; reading older replies preserves the current position and exposes a jump-to-latest button. Switching channels opens at the latest reply. Existing stored conversations remain intact.
+
+Validation after the combined live-data/chat changes: 37 Node tests, 13 static browser tests, 7 authenticated server/browser tests and 4 review-artifact tests pass (61 total). The chat regression seeds long AI replies, scrolls with the keyboard, appends messages while reading above the bottom, checks jump-to-latest and composer position, and repeats at 1440, 390 and 320 px. No real order or production deployment is introduced.

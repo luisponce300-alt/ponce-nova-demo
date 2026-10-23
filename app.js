@@ -122,6 +122,7 @@ let request = null,
   requestId = 0,
   cooldownUntil = 0,
   cooldownTimer;
+const marketRetryAt = new Map(), marketFailures = new Map();
 const dialog = $("#dialog"),
   content = $("#dialog-content");
 let dialogCleanup = () => {};
@@ -178,7 +179,21 @@ function addMessage(author, text, target = channel, kind = "local") {
   save();
   if (target === channel) renderChat();
 }
+let renderedChatChannel = null;
+function updateChatJump() {
+  const box = $("#messages");
+  $("#chat-latest").hidden = box.scrollHeight - box.clientHeight - box.scrollTop < 32;
+}
+$("#messages").addEventListener("scroll", updateChatJump);
+$("#chat-latest").onclick = () => {
+  const box = $("#messages");
+  box.scrollTop = box.scrollHeight;
+  updateChatJump();
+};
 function renderChat() {
+  const box = $("#messages");
+  const oldTop = box.scrollTop;
+  const follow = renderedChatChannel !== channel || box.scrollHeight - box.clientHeight - oldTop < 32;
   const list = chats[channel].length
     ? chats[channel]
     : [
@@ -211,7 +226,9 @@ function renderChat() {
       return n;
     }),
   );
-  $("#messages").scrollTop = $("#messages").scrollHeight;
+  box.scrollTop = follow ? box.scrollHeight : oldTop;
+  renderedChatChannel = channel;
+  updateChatJump();
   $$("[data-channel]").forEach((b) =>
     b.setAttribute("aria-pressed", String(b.dataset.channel === channel)),
   );
@@ -402,6 +419,7 @@ function refreshCooldown() {
 async function loadMarket(force = false) {
   const selected = category;
   const old = cache.get(selected);
+  if (Date.now() < (marketRetryAt.get(selected) || 0)) return;
   if (
     !force &&
     old &&
@@ -438,12 +456,18 @@ async function loadMarket(force = false) {
         referrerPolicy: "no-referrer",
       },
     );
-    if (!response.ok)
+    if (!response.ok) {
+      const failures = (marketFailures.get(selected) || 0) + 1;
+      marketFailures.set(selected, failures);
+      const retry = Number(response.headers.get("Retry-After"));
+      const wait = Math.min(900000, Math.max(60000, (Number.isFinite(retry) ? retry * 1000 : 0), 60000 * 2 ** Math.min(failures - 1, 4)));
+      marketRetryAt.set(selected, Date.now() + wait);
       throw new Error(
         response.status === 429
-          ? "Anropsgräns nådd (429). Vänta minst en minut."
+          ? `Anropsgräns nådd (429). Nytt försök tidigast ${timestamp(Date.now() + wait)}.`
           : `Datakällan svarade HTTP ${response.status}.`,
       );
+    }
     const body = await response.json();
     const received =
       Number(response.headers.get("X-Market-Fetched-At")) || Date.now();
@@ -453,6 +477,8 @@ async function loadMarket(force = false) {
         : normalizeMarkets(body);
     if (serial !== requestId) return;
     cache.set(selected, { coins, received, error: null, loading: false });
+    marketFailures.delete(selected);
+    marketRetryAt.delete(selected);
     if (selected !== "new") coins.forEach((q) => quotes.set(q.id, q));
     activity(
       `${coins.length} ${selected === "new" ? "pooler" : "kryptokurser"} hämtade från ${selected === "new" ? "GeckoTerminal" : "CoinGecko"}.`,
@@ -472,6 +498,7 @@ async function loadMarket(force = false) {
     if (serial === requestId) {
       request = null;
       cooldownUntil = Date.now() + 60000;
+      cooldownUntil = Math.max(cooldownUntil, marketRetryAt.get(selected) || 0);
       refreshCooldown();
       renderMarket();
       renderSummary();
@@ -500,6 +527,13 @@ $("#refresh").onclick = () => {
   if (!$("#refresh").disabled) loadMarket(true);
 };
 $("#search").oninput = renderMarket;
+function autoRefreshMarket() {
+  if (!document.hidden && $("#auto-market").checked && !request && Date.now() >= cooldownUntil)
+    loadMarket();
+}
+setInterval(autoRefreshMarket, 65000);
+document.addEventListener("visibilitychange", autoRefreshMarket);
+$("#auto-market").onchange = autoRefreshMarket;
 function openPool(q) {
   open(
     q.name,
@@ -553,6 +587,13 @@ function openTrade(preselected) {
   qty.required = true;
   qty.inputMode = "decimal";
   const price = paragraph("", "notice");
+  const realistic = el("input");
+  realistic.type = "checkbox";
+  realistic.id = "trade-costs";
+  realistic.checked = true;
+  const costLabel = el("label", "Simulera kostnader: 0,10 % avgift + 0,05 % ogynnsam prisrörelse per order");
+  costLabel.prepend(realistic);
+  form.append(costLabel);
   const result = paragraph("", "form-result");
   result.setAttribute("role", "status");
   for (const [text, control] of [
@@ -569,10 +610,15 @@ function openTrade(preselected) {
   form.append(submit);
   function preview() {
     const q = quotes.get(select.value);
-    price.textContent = `${q.symbol}: ${money(q.price)} · Kurstid ${timestamp(q.updated)} · ${isFresh(q) ? "Giltigt underlag" : "Inaktuell/saknad kurs: order blockeras"}. Äger ${number(wallet.positions[q.id]?.quantity || 0)}. Indikativt belopp: ${money(q.price * Number(qty.value))}.`;
+    const execution = Number.isFinite(q.price) ? q.price * (1 + (side.value === "buy" ? 1 : -1) * (realistic.checked ? 0.0005 : 0)) : NaN;
+    const gross = execution * Number(qty.value);
+    const fee = gross * (realistic.checked ? 0.001 : 0);
+    price.textContent = `${q.symbol}: ${money(q.price)} · Kurstid ${timestamp(q.updated)} · ${isFresh(q) ? "Giltigt underlag" : "Inaktuell/saknad kurs: order blockeras"}. Äger ${number(wallet.positions[q.id]?.quantity || 0)}. Simulerat avslutspris: ${money(execution)}. Avgift: ${money(fee)}. ${side.value === "buy" ? "Dras" : "Tillförs"}: ${money(gross + (side.value === "buy" ? fee : -fee))}.`;
   }
   select.onchange = preview;
   qty.oninput = preview;
+  side.onchange = preview;
+  realistic.onchange = preview;
   form.onsubmit = (e) => {
     e.preventDefault();
     try {
@@ -585,11 +631,13 @@ function openTrade(preselected) {
         quotes.get(select.value),
         side.value,
         Number(qty.value),
+        Date.now(),
+        realistic.checked ? { feeBps: 10, slippageBps: 5 } : {},
       );
       wallet = next;
       ledger.push(trade);
       activity(
-        `${trade.side === "buy" ? "Köp" : "Sälj"} ${number(trade.quantity)} ${trade.symbol} · ${money(trade.quantity * trade.price)} (paper).`,
+        `${trade.side === "buy" ? "Köp" : "Sälj"} ${number(trade.quantity)} ${trade.symbol} · ${money(trade.quantity * trade.price)} + avgift ${money(trade.fee)} (paper).`,
       );
       save();
       renderSummary();
@@ -603,7 +651,7 @@ function openTrade(preselected) {
   open(
     "Handel · paper trading",
     paragraph(
-      "Simulerade USD. Inga avgifter, ingen spread/slippage. Endast CoinGecko-kurser högst fem minuter gamla accepteras.",
+      "Simulerade USD med verkliga CoinGecko-referenskurser, högst fem minuter gamla. Kostnadsmodellen är ett antagande, inte observerad spread eller orderboksdjup. Kurser kan vara fördröjda. Ingen verklig order skickas.",
       "notice warning",
     ),
     price,
@@ -611,6 +659,8 @@ function openTrade(preselected) {
     result,
   );
   preview();
+  const previewTimer = setInterval(preview, 1000);
+  dialogCleanup = () => clearInterval(previewTimer);
 }
 function portfolioNodes() {
   const nodes = [
@@ -645,7 +695,7 @@ function portfolioNodes() {
   table.append(caption);
   const head = el("thead");
   const hr = el("tr");
-  ["Tid (Stockholm)", "Sida", "Token", "Antal", "Pris USD"].forEach((t) =>
+  ["Tid (Stockholm)", "Sida", "Token", "Antal", "Pris USD", "Avgift USD"].forEach((t) =>
     hr.append(el("th", t)),
   );
   head.append(hr);
@@ -662,6 +712,7 @@ function portfolioNodes() {
         t.symbol || t.id,
         number(t.quantity),
         money(t.price),
+        money(t.fee ?? 0),
       ].forEach((v) => row.append(el("td", v)));
       body.append(row);
     });
@@ -731,7 +782,7 @@ function report() {
     ledger,
     events,
     notes:
-      "Simulerad handel utan avgifter, spread eller slippage. Eventuella AI-svar är rådgivande och kan inte utföra order.",
+      "Simulerad handel med valbara antaganden om avgifter och prispåslag. Eventuella AI-svar är rådgivande och kan inte utföra order.",
   };
 }
 function downloadReport() {
@@ -895,7 +946,7 @@ const handlers = {
     open(
       "Teknik & utveckling",
       paragraph(
-        "Statisk HTML/CSS/JavaScript. CoinGecko levererar marknadsdata; GeckoTerminal levererar nya Ethereum-pooler. Inga API-nycklar används i klienten. Marknadsdata hämtas manuellt, med en minuts paus mellan uppdateringar i samma vy.",
+        "CoinGecko levererar kryptokurser; GeckoTerminal levererar nya Ethereum-pooler. Inga API-nycklar används i klienten. Vald marknadsvy uppdateras automatiskt cirka var 65:e sekund när sidan är synlig. Du kan pausa eller uppdatera manuellt. Vid källfel och anropsgränser väntar appen längre. Det är offentliga data med möjlig fördröjning, ingen tickström.",
       ),
       paragraph(
         serverMode
@@ -1076,7 +1127,7 @@ async function initializeRuntime() {
     $("#logout").hidden = false;
     if (aiConfigured)
       $("#mode-note").textContent =
-        "Ingen verklig handel. Valfria AI-svar via testservern. Paper trading saknar avgifter, spread och slippage.";
+        "Ingen verklig handel. Valfria AI-svar via testservern. Paper trading använder fördröjda referenskurser och valbara simulerade kostnader.";
     renderChat();
   } catch {
     /* Static/offline mode remains fully usable. */

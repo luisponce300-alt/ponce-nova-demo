@@ -55,6 +55,7 @@ class DashboardTests(unittest.TestCase):
         expect(self.page.locator('#data-status')).not_to_contain_text('Hämtar')
     def close_dialog(self):self.page.locator('#close-dialog').click()
     def trade(self, side, qty):
+        self.page.locator('#trade-costs').uncheck()
         self.page.locator('#trade-side').select_option(side)
         self.page.locator('#trade-quantity').fill(str(qty))
         self.page.get_by_role('button',name='Bekräfta simulerad order',exact=True).click()
@@ -164,5 +165,60 @@ class DashboardTests(unittest.TestCase):
         expect(self.page.locator('#coins')).to_contain_text('Bitcoin')
         expect(self.page.locator('#data-status')).not_to_contain_text('Hämtar')
         self.assertEqual(len(self.requests),2)
+
+    def test_auto_refresh_can_be_paused_and_resumes_with_real_changed_prices(self):
+        self.start()
+        self.page.locator('#auto-market').uncheck()
+        self.page.clock.fast_forward(65001)
+        self.assertEqual(len(self.requests),1)
+        self.page.route('https://api.coingecko.com/**',lambda r:r.fulfill(json=[coin(price=120,updated='2026-10-23T12:01:00Z')]))
+        self.page.locator('#auto-market').check()
+        expect(self.page.locator('#coins')).to_contain_text('120,00')
+        self.assertEqual(self.page.locator('#coins tr').count(),1)
+        self.page.get_by_role('button',name='Paper-order',exact=True).click()
+        self.page.locator('#trade-quantity').fill('1')
+        expect(self.page.locator('#trade-costs')).to_be_checked()
+        self.page.get_by_role('button',name='Bekräfta simulerad order',exact=True).click()
+        expect(self.page.locator('.form-result')).to_contain_text('genomförd')
+        saved=self.page.evaluate("JSON.parse(localStorage.getItem('ponce-nova:v1'))")
+        self.assertAlmostEqual(saved['ledger'][0]['price'],120.06)
+        self.assertAlmostEqual(saved['ledger'][0]['fee'],0.12006)
+        self.page.keyboard.press('Escape');self.page.reload()
+        expect(self.page.locator('#trade-count')).to_have_text('1')
+
+    def test_auto_refresh_obeys_retry_after_and_never_relabels_old_quotes(self):
+        self.start()
+        source=self.page.locator('#data-source').inner_text()
+        failed=[]
+        def limited(route):
+            failed.append(route.request.url)
+            route.fulfill(status=429,headers={'Retry-After':'180','Access-Control-Expose-Headers':'Retry-After'},json={'error':'quota'})
+        self.page.route('https://api.coingecko.com/**',limited)
+        self.page.clock.fast_forward(65001)
+        expect(self.page.locator('#data-status')).to_contain_text('429')
+        expect(self.page.locator('#data-source')).to_have_text(source)
+        self.page.clock.fast_forward(130000)
+        expect(self.page.locator('#refresh')).to_be_disabled()
+        self.assertEqual(self.page.locator('#coins tr').count(),2)
+        self.assertEqual(len(failed),1)
+
+    def test_chat_scroll_preserves_reader_position_and_keeps_composer_outside(self):
+        self.context.add_init_script("""localStorage.setItem('ponce-nova:v1',JSON.stringify({version:1,ledger:[],chats:{shared:Array.from({length:40},(_,i)=>({author:'Nova',text:'Meddelande '+i+' '+('Långt agentsvar. '.repeat(20)),time:Date.now(),kind:'ai'})),agents:[]},events:[]}));""")
+        self.start()
+        for width in [1440,390,320]:
+            self.page.set_viewport_size({'width':width,'height':900})
+            box=self.page.locator('#messages')
+            self.assertTrue(box.evaluate('e=>e.scrollHeight>e.clientHeight'))
+            self.assertLessEqual(box.evaluate('e=>e.clientHeight'),280)
+            box.focus();self.page.keyboard.press('Control+Home')
+            expect(self.page.locator('#chat-latest')).to_be_visible()
+            self.page.locator('#message').fill('Ett nytt meddelande')
+            self.page.locator('#chat').evaluate('e=>e.requestSubmit()')
+            self.assertLess(box.evaluate('e=>e.scrollTop'),32)
+            self.assertGreater(self.page.locator('#message').bounding_box()['y'],box.bounding_box()['y']+box.bounding_box()['height'])
+            self.page.locator('#chat-latest').click()
+            expect(self.page.locator('#chat-latest')).to_be_hidden()
+            self.assertLess(box.evaluate('e=>e.scrollHeight-e.clientHeight-e.scrollTop'),32)
+            self.assertEqual(self.page.evaluate('document.documentElement.scrollWidth'),width)
 
 if __name__=='__main__':unittest.main(verbosity=2)

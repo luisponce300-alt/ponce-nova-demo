@@ -207,3 +207,24 @@ test("world clocks use named zones across differing daylight-saving transitions"
   const winter = new Date("2026-12-10T12:00:00Z");
   assert.equal(clockParts(winter, "America/New_York").time, "07:00");
 });
+
+test("costed round trip loses only explicit fees and adverse price movement; old ledger still replays", () => {
+  const costs = { feeBps: 10, slippageBps: 5 };
+  const buy = executeTrade(emptyWallet(), quote(), "buy", 2, now, costs);
+  const sell = executeTrade(buy.wallet, quote(), "sell", 2, now, costs);
+  assert.ok(buy.trade.price > quote().price);
+  assert.ok(sell.trade.price < quote().price);
+  const loss = 2 * (buy.trade.price - sell.trade.price) + buy.trade.fee + sell.trade.fee;
+  assert.ok(Math.abs(sell.wallet.cash - (INITIAL_CASH - loss)) < 1e-9);
+  assert.ok(Math.abs(sell.wallet.realized + loss) < 1e-9);
+  assert.deepEqual(sell.wallet.positions, {});
+  assert.deepEqual(replayLedger([buy.trade, sell.trade]), sell.wallet);
+  assert.equal(replayLedger([trade()]).cash, 9800);
+});
+test("fees prevent overspending and invalid costs cannot create money", () => {
+  assert.throws(() => executeTrade(emptyWallet(), quote(), "buy", 100, now, { feeBps: 10 }), /saldo/);
+  for (const fee of [-1, Infinity, NaN, 201])
+    assert.throws(() => applyTrade(emptyWallet(), trade({ fee })));
+  for (const costs of [{feeBps:-1},{slippageBps:NaN},{slippageBps:101}])
+    assert.throws(() => executeTrade(emptyWallet(), quote(), "buy", 1, now, costs));
+});
