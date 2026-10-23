@@ -20,7 +20,7 @@ CoinGecko supplies ranked crypto lists and GeckoTerminal supplies new Ethereum p
 
 Supported Coinbase pairs can use an observed best bid/ask and size. The simulator applies declared fees/extra adverse price adjustment, a 0.5-second delay and partial IOC fills with the unfilled remainder canceled. It does not reserve real liquidity or execute an order. The reference-price model remains available for unsupported tokens; new pools cannot be traded. Historical zero-cost orders replay unchanged. See [market-data limits](docs/MARKET_DATA.md).
 
-The overview adapter uses Yahoo Finance for OMX Stockholm 30, S&P 500, S&P/TSX Composite and **GC=F gold futures**, not XAU/USD spot. Quotes can be delayed or unavailable. The calendar adapter is limited to official U.S. BLS events with supported source timestamps; it is not a complete global economic calendar. Actual availability is recorded in acceptance/PR evidence, not inferred from configuration.
+The overview adapter uses Yahoo Finance for OMX Stockholm 30, S&P 500, S&P/TSX Composite and **GC=F gold futures**, not XAU/USD spot. Quotes can be delayed or unavailable. The calendar adapter is limited to official U.S. BLS events with explicit supported source timestamps; it is not a complete global economic calendar. Actual availability is recorded in acceptance/PR evidence, not inferred from configuration.
 
 ## Storage and privacy
 

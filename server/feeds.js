@@ -10,6 +10,30 @@ const DEFAULT_IDS = ["bitcoin", "ethereum", "solana", "ripple", "cardano", "doge
 const error = (message, status = 502) => Object.assign(new Error(message), { status });
 const number = (v) => v !== null && v !== "" && Number.isFinite(Number(v)) ? Number(v) : null;
 
+// Resolve only explicit, supported calendar zones; reject ambiguous/nonexistent local times.
+export function calendarTime(raw, zone) {
+  const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z?)$/.exec(raw);
+  if (!match) return null;
+  const [year,month,day,hour,minute,second] = match.slice(1,7).map(Number);
+  const target = Date.UTC(year,month-1,day,hour,minute,second);
+  if (new Date(target).toISOString().slice(0,19).replace(/[-:]/g,"") !== raw.slice(0,15)) return null;
+  if (match[7] === "Z") return target;
+  zone = ({"US-Eastern":"America/New_York","US/Eastern":"America/New_York"})[zone] || zone;
+  if (!["America/New_York","UTC","Etc/UTC"].includes(zone)) return null;
+  const format = new Intl.DateTimeFormat("en-GB", {timeZone:zone,hourCycle:"h23",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const localValue = time => {
+    const p=Object.fromEntries(format.formatToParts(new Date(time)).map(p=>[p.type,p.value]));
+    return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);
+  };
+  let time=target;
+  for(let i=0;i<4;i++) {
+    const difference=target-localValue(time);
+    if(!difference) return localValue(time-3600000)===target || localValue(time+3600000)===target ? null : time;
+    time+=difference;
+  }
+  return null;
+}
+
 export function createFeeds({ fetcher = fetch, now = Date.now } = {}) {
   const cache = new Map(), pending = new Map(), status = new Map(), pauses = new Map();
   async function request(id, url, ttl = 60000, json = true) {
@@ -112,14 +136,21 @@ export function createFeeds({ fetcher = fetch, now = Date.now } = {}) {
   async function calendar() {
     const e = await request("calendar:bls", "https://www.bls.gov/schedule/news_release/bls.ics", 3600000, false);
     const unfolded = e.data.replace(/\r?\n[ \t]/g, "");
-    const events = [...unfolded.matchAll(/BEGIN:VEVENT\r?\n([\s\S]*?)END:VEVENT/g)].map(([, block]) => {
-      const start = block.match(/^DTSTART(?:;[^:]*)?:(\d{8}T\d{6}Z)\s*$/m)?.[1];
+    const defaultZone=unfolded.match(/^X-WR-TIMEZONE:(.+)\r?$/m)?.[1]?.trim();
+    const sourceTimeZones=new Set();
+    let unsupported=0;
+    const parsed = [...unfolded.matchAll(/BEGIN:VEVENT\r?\n([\s\S]*?)END:VEVENT/g)].map(([, block]) => {
+      const start = block.match(/^DTSTART([^:]*):(\d{8}T\d{6}Z?)\s*$/m);
       const summary = block.match(/^SUMMARY:(.*)$/m)?.[1]?.trim();
-      if (!start || !summary) return null; // Never guess unsupported local-time/TZID timestamps.
-      const iso = `${start.slice(0,4)}-${start.slice(4,6)}-${start.slice(6,8)}T${start.slice(9,11)}:${start.slice(11,13)}:${start.slice(13,15)}Z`;
-      return { title: summary.replace(/\\n/g, " ").replace(/\\([,;\\])/g, "$1").slice(0,240), time: Date.parse(iso) };
-    }).filter(e => e && Number.isFinite(e.time) && e.time >= now()).sort((a,b) => a.time-b.time).slice(0,20);
-    return { events, source: "U.S. Bureau of Labor Statistics", scope: "Endast amerikanska BLS-publiceringar med UTC-tid i källan", received: e.received };
+      const zone=start?.[1].match(/;TZID=(?:"([^"]+)"|([^;\r\n]+))/)?.slice(1).find(Boolean) || defaultZone;
+      sourceTimeZones.add(start?.[2].endsWith("Z") ? "UTC" : String(zone || "floating").slice(0,100));
+      const time=start ? calendarTime(start[2],zone) : null;
+      if (time === null || !summary) {unsupported++;return null;}
+      return { title: summary.replace(/\\n/g, " ").replace(/\\([,;\\])/g, "$1").slice(0,240), time };
+    }).filter(Boolean);
+    const events=parsed.filter(e=>e.time>=now()).sort((a,b)=>a.time-b.time).slice(0,20);
+    return { events, source: "U.S. Bureau of Labor Statistics", scope: "Endast amerikanska BLS-publiceringar; UTC eller uttrycklig stödd källtidszon", received: e.received,
+      sourceEvents:parsed.length, unsupportedEvents:unsupported, sourceTimeZones:[...sourceTimeZones].slice(0,20), latestSourceEvent:parsed.length?Math.max(...parsed.map(e=>e.time)):null };
   }
   return { crypto, executionQuote, overview, calendar, status: () => Object.fromEntries(status) };
 }

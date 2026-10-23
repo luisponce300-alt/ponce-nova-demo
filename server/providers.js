@@ -96,6 +96,8 @@ export async function providerReply(config, fetcher, instructions, input) {
       429,
       `${config.name}: kvot eller anropsgräns nådd. Vänta och försök senare. Ingen annan eller betald modell anropades.`,
     );
+  if ([502, 503, 504].includes(response.status))
+    throw failure(503, `${config.name} är tillfälligt otillgänglig eller överbelastad. Försök senare. Ingen annan eller betald modell anropades.`);
   if (!response.ok)
     throw failure(
       502,

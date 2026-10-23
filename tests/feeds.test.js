@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createFeeds } from "../server/feeds.js";
+import { createFeeds, calendarTime } from "../server/feeds.js";
 const NOW = Date.parse("2026-10-23T12:00:00Z");
 const ticker = { price:"100",bid:"99",ask:"101",volume:"1200",time:new Date(NOW).toISOString() };
 test("exchange USD quotes preserve provider time through caching and reject arbitrary symbols", async()=>{
@@ -45,4 +45,14 @@ test("official calendar only accepts supported source UTC dates and future event
   const data=await feeds.calendar();
   assert.equal(data.events.length,1);assert.equal(data.events[0].title,"Employment, report");
   assert.equal(data.events[0].time,Date.parse("2026-10-24T12:30:00Z"));
+});
+test("explicit Eastern calendar times follow DST; floating, ambiguous and invalid dates are rejected",async()=>{
+  assert.equal(calendarTime("20261024T083000","US-Eastern"),Date.parse("2026-10-24T12:30:00Z"));
+  assert.equal(calendarTime("20261102T083000","America/New_York"),Date.parse("2026-11-02T13:30:00Z"));
+  assert.equal(calendarTime("20261101T013000","America/New_York"),null);
+  assert.equal(calendarTime("20260308T023000","America/New_York"),null);
+  assert.equal(calendarTime("20260230T083000Z"),null);
+  assert.equal(calendarTime("20261024T083000"),null);
+  const feeds=createFeeds({now:()=>NOW,fetcher:async()=>new Response("BEGIN:VEVENT\nDTSTART;TZID=US-Eastern:20261024T083000\nSUMMARY:Official future release\nEND:VEVENT")});
+  const data=await feeds.calendar();assert.equal(data.events.length,1);assert.equal(data.unsupportedEvents,0);
 });

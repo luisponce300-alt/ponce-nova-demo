@@ -1225,6 +1225,8 @@ async function openCalendar() {
     if (!response.ok) throw new Error();
     const data = await response.json();
     text.textContent = `${data.source}. ${data.scope}. Hämtad ${timestamp(data.received)}.`;
+    if (data.unsupportedEvents) text.textContent += ` ${data.unsupportedEvents} händelser har ett tidsformat som inte kan visas säkert.`;
+    if (!data.events.length && data.latestSourceEvent) text.textContent += ` Senaste tolkningsbara källhändelse: ${timestamp(data.latestSourceEvent)}.`;
     const list = el("ul");
     for (const event of data.events) list.append(el("li", `${timestamp(event.time)} · ${event.title}`));
     if (!data.events.length) list.append(el("li", "Källan saknar kommande händelser med stödd tidsangivelse. Ingen komplett global kalender påstås."));

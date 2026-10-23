@@ -112,6 +112,11 @@ test("quota error makes exactly one call and never falls back", async () => {
   );
   assert.equal(calls, 1);
 });
+test("temporary provider overload is reported honestly without blaming credentials or retrying",async()=>{
+  let calls=0;
+  await assert.rejects(providerReply(providerConfig(FREE),async()=>{calls++;return new Response("private-body",{status:503});},"role",{}),e=>e.status===503 && /överbelastad/.test(e.message) && !/serverinställning/.test(e.message));
+  assert.equal(calls,1);
+});
 test("blocked/truncated/empty/malformed replies are not fabricated", async () => {
   for (const data of [
     { promptFeedback: { blockReason: "SAFETY" } },

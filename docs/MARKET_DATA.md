@@ -20,7 +20,7 @@ Default assumptions add a 0.10% fee and a 0.05% adverse price adjustment per sid
 
 The Yahoo Finance chart adapter requests OMX Stockholm 30, S&P 500 and S&P/TSX Composite, plus GC=F gold futures in USD per troy ounce. The gold future is not spot XAU/USD and can be affected by contract rolling. Data can be delayed, stale while an exchange is closed, unavailable or subject to provider changes; quote times are displayed. These panels have no order execution. The original clocks work independently of quote availability.
 
-The official U.S. Bureau of Labor Statistics ICS adapter displays future events with supported UTC source timestamps. Unsupported time zones are not guessed. It is not a complete global calendar, and empty/failed responses are explicitly explained. The implementation of an adapter is not evidence that its external endpoint currently responds: use Driftstatus and the PR's actual live check.
+The official U.S. Bureau of Labor Statistics ICS adapter displays future events with UTC or explicitly declared supported Eastern source timestamps. DST is resolved by IANA rules; ambiguous/nonexistent local times and unknown/floating time zones are rejected. It is not a complete global calendar, and empty/failed responses are explicitly explained. The implementation of an adapter is not evidence that its external endpoint currently responds: use Driftstatus and the PR's actual live check.
 
 ## Storage and monitoring
 
