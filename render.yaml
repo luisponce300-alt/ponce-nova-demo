@@ -27,7 +27,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.8-flash
       - key: GEMINI_FREE_TIER_CONFIRMED
         value: "false"
       - key: AI_MIN_INTERVAL_SECONDS

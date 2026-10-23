@@ -10,6 +10,7 @@ const FREE = {
 test("defaults are Gemini/free test, without a key it is disconnected", () => {
   const c = providerConfig({});
   assert.equal(c.id, "gemini");
+  assert.equal(c.model, "gemini-3.8-flash");
   assert.equal(c.mode, "free-test");
   assert.equal(c.configured, false);
   assert.equal(c.minimumIntervalMs, 30000);
@@ -90,6 +91,8 @@ test("Gemini uses a fixed HTTPS host, header key, system role and no tools", asy
   assert.match(p.contents[0].parts[0].text, /Untrusted question/);
   assert.ok(!("tools" in p));
   assert.equal(p.generationConfig.maxOutputTokens, 2048);
+  assert.ok(captured.url.endsWith("/gemini-3.8-flash:generateContent"));
+  assert.ok(!("thinkingConfig" in p.generationConfig));
 });
 test("quota error makes exactly one call and never falls back", async () => {
   let calls = 0;
