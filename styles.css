@@ -396,6 +396,7 @@ small,
   min-height: 140px;
   overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
+  overflow-anchor: none;
   padding: 10px 2px;
   scrollbar-color: #247e9b #061a2c;
 }
@@ -712,10 +713,23 @@ small,
   width: auto;
   margin-right: 8px;
 }
-.form-grid label:has(#trade-costs) {
+.form-grid label:has(#trade-costs),
+.form-grid label:has(#trade-book) {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
+}
+#trade-book {
+  width: auto;
+  margin-right: 8px;
+}
+#workspace-backup-file {
+  width: 100%;
+  max-width: 100%;
+  font-size: 12px;
+}
+#portfolio-feed-status {
+  overflow-wrap: anywhere;
 }
 #data-status {
   font-size: 12px;

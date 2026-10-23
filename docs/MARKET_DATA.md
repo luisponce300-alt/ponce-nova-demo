@@ -1,11 +1,29 @@
-# Market data and realistic paper execution
+# Market data and execution model
 
-The separately authorized Render preview uses real public CoinGecko USD quotes and GeckoTerminal Ethereum pool observations. It does not generate prices. These are potentially delayed reference data, not an exchange tick stream or executable bid/ask quotes. The existing design and all panels remain; stock indices, gold and the economic calendar still have no connected feed.
+## Crypto feeds
 
-The selected crypto category refreshes approximately every 65 seconds while the page is visible and automatic updates are enabled. Turning updates off preserves the current rows; returning to a visible page catches up when due. Only the selected category is polled: holdings outside its data may become stale, in which case portfolio totals are unavailable rather than invented. Each category is cached for a minute on the server, with shared in-flight requests. The original provider quote timestamp and server receipt timestamp remain separate. Refresh failure preserves the original timestamps and rows, marks the error and never makes old data fresh.
+The isolated Render preview uses actual public USD prices, never generated fallback prices. CoinGecko supplies ranked large/small-cap lists; GeckoTerminal supplies newly created Ethereum pools, which are not necessarily new tokens and cannot be paper traded. If the large list fails, an explicitly labeled Coinbase Exchange USD-pair subset can replace it. The subset has no market-cap rank, invented cap or invented 24-hour change. Small/pool-source failures remain visible.
 
-HTTP failures trigger client backoff from one minute up to 15 minutes. Numeric Retry-After values are honored within that bounded interval. Provider HTTP errors also pause that provider host on the server; CoinGecko's large/small lists share the pause. Cached responses still within their original one-minute lifetime may be served. No background AI calls are added. Providers can still return quota errors, so continuous feed availability is not promised on the free public endpoints.
+With MARKET_FEEDS_ENABLED=true, the browser refreshes every held asset independently of the selected list, approximately every 30 seconds while visible and automatic fetching is enabled. Requests are batched in groups of 50 IDs. Eight major USD pairs use Coinbase; unsupported or failed exchange pairs can try a fixed CoinGecko endpoint. Missing/stale holdings make total valuation unavailable. Valuation uses reference/last-trade prices, not guaranteed liquidation proceeds after exit costs.
 
-Paper orders accept only usable, tradable CoinGecko quotes no older than five minutes. New pools cannot be traded. The default cost checkbox simulates a 0.10% fee plus a 0.05% adverse execution-price adjustment on each side. This is a declared assumption, not observed spread, depth or guaranteed slippage. A flat-price round trip therefore loses both fees and the adverse adjustment. Fees reduce cash, enter buy cost basis and reduce sale proceeds/realized result. The order preview refreshes as quotes change; the actual saved order records execution/reference prices, fee, assumptions, source and quote time. History and JSON exports retain fees.
+The selected market list polls approximately every 65 seconds. Source update time and server receipt/observation time are separate. Failure preserves old quote times and rows; it never turns old data into a fresh observation. The server caches responses, shares in-flight work and observes bounded provider cooldowns. Public quotas/availability, data licensing and provider behavior can change. These endpoints do not promise a continuous exchange tick stream.
 
-The user can turn the cost assumption off for comparison. Existing saved orders retain their original zero-cost accounting and are never rewritten. Order submission, wallet and ledger remain local browser simulations. They do not model liquidity, partial fills, order-book priority, exchange outages, taxes or leverage; there is no brokerage/order connection. Agent output remains advisory and on demand.
+## Simulated execution
+
+Supported Coinbase USD pairs can request a level-1 order-book snapshot on explicit order confirmation. Best bid/ask and displayed quantities are read only. The timestamp is explicitly the server's observation time because the book response has no authoritative quote timestamp. A snapshot older than ten seconds is rejected. The simulator waits 0.5 seconds, fills at the appropriate observed side with optional declared adverse adjustment, and caps the fill to the displayed quantity at that best level. Unfilled quantity is canceled (IOC model), not left as a real or pending order.
+
+No liquidity is reserved/consumed on the exchange, snapshots can be cached for two seconds, and repeated test orders can reuse observed liquidity. The model does not reconstruct a complete order book, queue priority, hidden orders, exchange risk checks, price impact or actual settlement. A live market can change during/after observation. This is a controlled simulation, not an execution guarantee.
+
+Default assumptions add a 0.10% fee and a 0.05% adverse price adjustment per side. The fee enters cash and average-cost basis/realized P/L. The assumptions can be disabled for comparison; actual observed bid/ask spread remains in the order-book model. Orders record requested/filled/remaining quantity, model, execution/reference prices, source, quote time and costs. Unsupported assets can use the explicitly labeled reference-price simulation with five-minute maximum quote age. Existing historical zero-cost orders replay unchanged.
+
+## Overview and calendar
+
+The Yahoo Finance chart adapter requests OMX Stockholm 30, S&P 500 and S&P/TSX Composite, plus GC=F gold futures in USD per troy ounce. The gold future is not spot XAU/USD and can be affected by contract rolling. Data can be delayed, stale while an exchange is closed, unavailable or subject to provider changes; quote times are displayed. These panels have no order execution. The original clocks work independently of quote availability.
+
+The official U.S. Bureau of Labor Statistics ICS adapter displays future events with supported UTC source timestamps. Unsupported time zones are not guessed. It is not a complete global calendar, and empty/failed responses are explicitly explained. The implementation of an adapter is not evidence that its external endpoint currently responds: use Driftstatus and the PR's actual live check.
+
+## Storage and monitoring
+
+Driftstatus shows observed provider requests, last successful timestamps, AI configuration/usage/error and database availability. Metrics reset with the server process and do not represent complete external-provider account quotas. An HTTP success is not proof of fresh executable prices; individual quote timestamps and order-book checks still apply.
+
+Neon persistence, conflict handling and backup import/export are described in [the testing guide](SERIOUS_TESTING.md). Full backups include chats. No actual orders or paid model fallback are introduced. Main/Pages are unchanged.

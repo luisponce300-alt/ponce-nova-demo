@@ -48,6 +48,7 @@ async function setup(t, overrides = {}) {
     env: { ...ENV, ...overrides.env },
     now: overrides.now || (() => NOW),
     fetchImpl,
+    storage: overrides.storage,
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -382,4 +383,28 @@ test("market quota pauses shared CoinGecko host, preserves cached timestamps and
   time += 1001;
   assert.equal((await s.get('/api/market/large')).status,200);
   assert.equal(calls,3);
+});
+test("private workspace state requires authentication and same-origin PUT; storage conflicts are explicit",async(t)=>{
+  let state={version:1,ledger:[],chats:{shared:[],agents:[]},events:[]},revision=0;
+  const storage={configured:true,status:()=>({configured:true,healthy:true}),read:async()=>({state,revision}),write:async(r,v)=>{
+    if(r!==revision)throw Object.assign(new Error("Konflikt"),{status:409});state=v;return {revision:++revision};
+  }};
+  const s=await setup(t,{storage});
+  assert.equal((await fetch(s.base+'/api/state')).status,401);
+  assert.equal((await s.get('/api/state')).status,200);
+  const write=(origin,r)=>s.get('/api/state',{method:'PUT',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({revision:r,state})});
+  assert.equal((await write('https://evil.test',0)).status,403);
+  assert.equal((await write(s.base,0)).status,200);
+  assert.equal((await write(s.base,0)).status,409);
+  assert.equal((await s.get('/api/status')).status,200);
+});
+test("CoinGecko failure falls back to explicitly labeled USD exchange data when enabled",async(t)=>{
+  const s=await setup(t,{env:{MARKET_FEEDS_ENABLED:'true'},fetchImpl:async(url)=>url.includes('coingecko')?new Response('{}',{status:429}):Response.json({price:'100',bid:'99',ask:'101',volume:'1000',time:new Date(NOW).toISOString()})});
+  const r=await s.get('/api/market/large');
+  assert.equal(r.status,200);assert.match(r.headers.get('x-market-notice'),/ingen börsvärdesrankning/);
+  const rows=await r.json();assert.equal(rows[0]._source,'Coinbase Exchange');assert.equal(rows[0].market_cap,null);
+  const snapshot=await s.get('/api/snapshot?ids=bitcoin');assert.equal(snapshot.status,200);
+  assert.equal((await snapshot.json()).quotes[0].updated,NOW);
+  assert.equal((await s.get('/api/snapshot?ids=https://evil.test')).status,400);
+  assert.equal((await s.get('/api/execution-quote?id=unknown')).status,400);
 });

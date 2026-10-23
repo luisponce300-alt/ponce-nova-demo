@@ -8,7 +8,7 @@ services:
     repo: https://github.com/luisponce300-alt/ponce-nova-demo
     branch: feature/issue-1-interactive-dashboard
     autoDeployTrigger: "off"
-    buildCommand: npm ci --ignore-scripts
+    buildCommand: npm ci --omit=dev --ignore-scripts
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
@@ -16,6 +16,10 @@ services:
         value: production
       - key: NODE_VERSION
         value: 24.19.0
+      - key: MARKET_FEEDS_ENABLED
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
       - key: PREVIEW_PASSWORD
         generateValue: true
       - key: SESSION_SECRET

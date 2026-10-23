@@ -211,6 +211,7 @@ class DashboardTests(unittest.TestCase):
             self.assertTrue(box.evaluate('e=>e.scrollHeight>e.clientHeight'))
             self.assertLessEqual(box.evaluate('e=>e.clientHeight'),280)
             box.focus();self.page.keyboard.press('Control+Home')
+            self.page.wait_for_function("document.querySelector('#messages').scrollTop < 32")
             expect(self.page.locator('#chat-latest')).to_be_visible()
             self.page.locator('#message').fill('Ett nytt meddelande')
             self.page.locator('#chat').evaluate('e=>e.requestSubmit()')

@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import { randomBytes, createHmac, timingSafeEqual, scrypt } from "node:crypto";
 import { promisify } from "node:util";
 import { providerConfig, providerReply } from "./providers.js";
+import { createFeeds, PRODUCTS } from "./feeds.js";
+import { createStorage } from "./storage.js";
 import { AGENTS } from "../agents.js";
 import { ENDPOINTS, normalizeMarkets, isFresh } from "../core.js";
 const hashPassword = promisify(scrypt);
@@ -54,6 +56,15 @@ export async function createApp(options = {}) {
   const expected = await hashPassword(password, salt, 32);
   const fetcher = options.fetchImpl || fetch;
   const now = options.now || Date.now;
+  const feeds = createFeeds({ fetcher, now });
+  const feedsEnabled = env.MARKET_FEEDS_ENABLED === "true";
+  let storage;
+  try { storage = options.storage || createStorage(env); }
+  catch {
+    storage = { configured:false, status:()=>({configured:false,healthy:false,setupError:"DATABASE_URL har fel format eller en otillåten värd. Lokal lagring används tills anslutningen rättats."}),
+      read:async()=>{throw fail(503,"Databasanslutningen behöver rättas i Render.");}, write:async()=>{throw fail(503,"Databasanslutningen behöver rättas i Render.");} };
+  }
+  let lastAgentSuccess = null, lastAgentError = null;
   const origin = env.PUBLIC_ORIGIN || env.RENDER_EXTERNAL_URL;
   if (
     env.NODE_ENV === "production" &&
@@ -140,7 +151,7 @@ export async function createApp(options = {}) {
         : JSON.stringify(data),
     );
   }
-  async function market(category) {
+  async function geckoMarket(category) {
     if (!Object.hasOwn(ENDPOINTS, category))
       throw fail(404, "Okänd marknadskategori.");
     const cached = marketCache.get(category);
@@ -198,6 +209,18 @@ export async function createApp(options = {}) {
       pending.delete(category);
     }
   }
+  async function market(category) {
+    try { return await geckoMarket(category); }
+    catch (e) {
+      if (!feedsEnabled || category !== "large") throw e;
+      const snapshot = await feeds.crypto();
+      if (!snapshot.quotes.length) throw e;
+      return { received: snapshot.received, notice: "CoinGecko är otillgänglig. Visar ett urval USD-par från Coinbase Exchange, ingen börsvärdesrankning.",
+        data: snapshot.quotes.map(q=>({ id:q.id, name:q.name, symbol:q.symbol, current_price:q.price,
+          last_updated:new Date(q.updated).toISOString(), market_cap:null, price_change_percentage_24h:null,
+          _source:q.source, bid:q.bid, ask:q.ask, book_observed:q.bookObserved })) };
+    }
+  }
   async function runAgent(input) {
     const agent = AGENTS.find((a) => a.id === input.agentId);
     if (!agent) throw fail(400, "Okänd agent.");
@@ -232,11 +255,16 @@ export async function createApp(options = {}) {
       let observations = [];
       let dataStatus = "Marknadsdata saknas.";
       try {
-        const entry = await market("large");
-        observations = normalizeMarkets(entry.data)
-          .filter((q) => isFresh(q, now()))
-          .slice(0, 15);
-        dataStatus = `CoinGecko; serverhämtning ${new Date(entry.received).toISOString()}; bara färska kurser.`;
+        if (feedsEnabled) {
+          const held = Object.keys(input.portfolio?.positions || {}).filter(id=>/^[a-z0-9][a-z0-9-]{0,99}$/.test(id)).slice(0, 40);
+          const snapshot = await feeds.crypto([...new Set(["bitcoin", "ethereum", "solana", ...held])]);
+          observations = snapshot.quotes.filter(q=>isFresh(q, now()));
+          dataStatus = `${[...new Set(observations.map(q=>q.source))].join(", ") || "Inga färska kurser"}; endast tidsstämplade observationer. Saknade innehav: ${snapshot.missing.join(", ") || "inga"}.`;
+        } else {
+          const entry = await market("large");
+          observations = normalizeMarkets(entry.data).filter((q) => isFresh(q, now())).slice(0, 15);
+          dataStatus = `${[...new Set(observations.map(q=>q.source))].join(", ")}; serverhämtning ${new Date(entry.received).toISOString()}; bara färska kurser.`;
+        }
       } catch {
         /* Honest missing-data context, not fabricated facts. */
       }
@@ -251,6 +279,8 @@ export async function createApp(options = {}) {
         observations,
         userProvidedPaperPortfolio: portfolio,
       });
+      lastAgentSuccess = now();
+      lastAgentError = null;
       return {
         agentId: agent.id,
         author: agent.name,
@@ -261,11 +291,14 @@ export async function createApp(options = {}) {
         source: provider.name,
         model: provider.model,
       };
+    } catch (e) {
+      lastAgentError = { time: now(), message: e.status ? e.message : "AI-anropet misslyckades." };
+      throw e;
     } finally {
       active--;
     }
   }
-  return createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url, "http://localhost");
       const path = url.pathname;
@@ -304,7 +337,7 @@ export async function createApp(options = {}) {
           return send(res, 401, { error: "Logga in i testmiljön." });
         return send(res, 303, "", "text/plain", { Location: "/login" });
       }
-      if (req.method === "POST" && !sameOrigin(req))
+      if (["POST", "PUT", "DELETE"].includes(req.method) && !sameOrigin(req))
         throw fail(403, "Felaktigt ursprung.");
       if (path === "/logout" && req.method === "POST")
         return send(res, 303, "", "text/plain", {
@@ -325,11 +358,34 @@ export async function createApp(options = {}) {
               : null,
           agents: AGENTS,
           maxRunsPerHour: maxRuns,
+          marketFeedsEnabled: feedsEnabled,
+          orderBookIds: feedsEnabled ? Object.keys(PRODUCTS) : [],
+          sharedStorageConfigured: storage.configured,
         });
+      if (path === "/api/status" && req.method === "GET")
+        return send(res, 200, { time: now(), feedsEnabled, feeds: feeds.status(),
+          crypto: Object.fromEntries([...marketCache].map(([key,e])=>[key,{lastSuccess:e.received}])),
+          storage: storage.status(), ai: { configured:provider.configured, provider:provider.name,
+            callsThisHour:aiWindow.count, maxRuns, nextAllowed:nextAgentAt, lastSuccess:lastAgentSuccess, lastError:lastAgentError } });
+      if (path === "/api/state" && req.method === "GET") return send(res, 200, await storage.read());
+      if (path === "/api/state" && req.method === "PUT") {
+        if (!req.headers["content-type"]?.startsWith("application/json")) throw fail(415,"JSON krävs.");
+        let input;
+        try { input = JSON.parse(await body(req, 2800000)); } catch(e) { throw e.status ? e : fail(400,"Ogiltig JSON."); }
+        return send(res, 200, await storage.write(input?.revision, input?.state));
+      }
+      if (["/api/snapshot", "/api/execution-quote", "/api/overview", "/api/calendar"].includes(path) && req.method === "GET") {
+        if (!feedsEnabled) throw fail(503,"Utökade datakällor är inte aktiverade.");
+        if (path === "/api/snapshot") return send(res,200, await feeds.crypto((url.searchParams.get("ids") || "bitcoin,ethereum,solana").split(",")));
+        if (path === "/api/execution-quote") return send(res,200, await feeds.executionQuote(url.searchParams.get("id")));
+        if (path === "/api/overview") return send(res,200, await feeds.overview());
+        return send(res,200, await feeds.calendar());
+      }
       if (path.startsWith("/api/market/") && req.method === "GET") {
         const entry = await market(path.slice("/api/market/".length));
         return send(res, 200, entry.data, undefined, {
           "X-Market-Fetched-At": String(entry.received),
+          ...(entry.notice ? { "X-Market-Notice": entry.notice } : {}),
         });
       }
       if (path === "/api/agents/run" && req.method === "POST") {
@@ -362,4 +418,6 @@ export async function createApp(options = {}) {
       else res.end();
     }
   });
+  server.on("close", () => { Promise.resolve(storage.close?.()).catch(()=>{}); });
+  return server;
 }

@@ -405,6 +405,7 @@ small,
   min-height: 140px;
   overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
+  overflow-anchor: none;
   padding: 10px 2px;
   scrollbar-color: #247e9b #061a2c;
 }
@@ -721,10 +722,23 @@ small,
   width: auto;
   margin-right: 8px;
 }
-.form-grid label:has(#trade-costs) {
+.form-grid label:has(#trade-costs),
+.form-grid label:has(#trade-book) {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
+}
+#trade-book {
+  width: auto;
+  margin-right: 8px;
+}
+#workspace-backup-file {
+  width: 100%;
+  max-width: 100%;
+  font-size: 12px;
+}
+#portfolio-feed-status {
+  overflow-wrap: anywhere;
 }
 #data-status {
   font-size: 12px;
@@ -1511,7 +1525,9 @@ function normalizeMarkets(data) {
       change: numeric(c.price_change_percentage_24h),
       cap: numeric(c.market_cap),
       updated: Date.parse(c.last_updated),
-      source: "CoinGecko",
+      source: c._source === "Coinbase Exchange" ? "Coinbase Exchange" : "CoinGecko",
+      bid: numeric(c.bid),
+      ask: numeric(c.ask),
       tradable: true,
     }));
   if (!coins.length) throw new Error("Datakällan saknar användbara tokens.");
@@ -1624,10 +1640,19 @@ function executeTrade(wallet, quote, side, quantity, now = Date.now(), costs = {
     throw new Error(
       "Kursen saknas eller är äldre än fem minuter. Uppdatera data först.",
     );
-  const { feeBps = 0, slippageBps = 0 } = costs;
+  const { feeBps = 0, slippageBps = 0, useOrderBook = false } = costs;
   if (![feeBps, slippageBps].every((n) => Number.isFinite(n) && n >= 0 && n <= 100))
     throw new Error("Ogiltiga simulerade handelskostnader.");
-  const price = quote.price * (1 + (side === "buy" ? 1 : -1) * slippageBps / 10000);
+  if (!positive(quantity)) throw new Error("Ange ett giltigt positivt antal.");
+  const requestedQuantity = quantity;
+  const bookPrice = side === "buy" ? quote.ask : quote.bid;
+  const bookSize = side === "buy" ? quote.askSize : quote.bidSize;
+  if (useOrderBook) {
+    if (!(positive(bookPrice) && positive(bookSize)) || now - quote.updated > 10000)
+      throw new Error("Färsk orderbok saknas. Ordern avvisades utan avslut.");
+    quantity = Math.min(quantity, bookSize);
+  }
+  const price = (useOrderBook ? bookPrice : quote.price) * (1 + (side === "buy" ? 1 : -1) * slippageBps / 10000);
   const trade = {
     id: quote.id,
     symbol: quote.symbol,
@@ -1638,6 +1663,9 @@ function executeTrade(wallet, quote, side, quantity, now = Date.now(), costs = {
     fee: quantity * price * feeBps / 10000,
     feeBps,
     slippageBps,
+    requestedQuantity,
+    remainingQuantity: requestedQuantity - quantity,
+    executionModel: useOrderBook ? "observed-best-level-ioc-simulation" : "reference-simulation",
     time: now,
     quoteTime: quote.updated,
     source: quote.source,
@@ -1682,6 +1710,9 @@ let serverMode = false,
   aiProviderName = "AI-tjänsten",
   minimumAgentIntervalMs = 0,
   boardController = null;
+let feedsEnabled = false, orderBookIds = [], portfolioRequest = false;
+let sharedMode = false, sharedRevision = null, sharedPaused = false,
+  sharedDirty = false, sharedBusy = false, sharedTimer, sharedMessage = "Lokal lagring", pendingShared = null;
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const KEY = "ponce-nova:review:v1";
@@ -1762,12 +1793,19 @@ try {
     "Sparade data kunde inte läsas. Ursprunglig lagring bevaras; sessionen körs i minnet.",
   );
 }
-function save() {
+function localState() { return { version: 1, ledger, chats, events }; }
+function save(sync = true) {
+  if (sync && sharedMode) {
+    sharedDirty = true;
+    try { localStorage.setItem(KEY + ":unsynced", "true"); } catch { /* Memory state still kept. */ }
+    clearTimeout(sharedTimer);
+    sharedTimer = setTimeout(pushSharedState, 800);
+  }
   if (!storageOK) return;
   try {
     localStorage.setItem(
       KEY,
-      JSON.stringify({ version: 1, ledger, chats, events }),
+      JSON.stringify(localState()),
     );
   } catch {
     storageOK = false;
@@ -1813,10 +1851,10 @@ dialog.addEventListener("click", (e) => {
       dialog.close();
   }
 });
-function activity(text) {
+function activity(text, sync = true) {
   events.push({ text, time: Date.now() });
   events = events.slice(-100);
-  save();
+  save(sync);
   renderActivities();
 }
 function renderActivities() {
@@ -2008,10 +2046,12 @@ function renderMarket() {
   const source =
     category === "new"
       ? "GeckoTerminal · nya Ethereum-pooler (inte nödvändigtvis nya tokens). Likviditet ersätter börsvärde. Poolens pris är observerat vid hämtning; exakt kurstid saknas."
-      : "CoinGecko · " +
+      : entry?.notice || ((entry?.coins || []).some(q=>q.source === "Coinbase Exchange")
+        ? "Coinbase Exchange · urval USD-par; ingen börsvärdesrankning."
+        : "CoinGecko · " +
         (category === "small"
           ? "börsvärdesrankning 501–750, mindre än topplistan; inte en garanti för småbolagsstatus."
-          : "börsvärdesrankning 1–30.");
+          : "börsvärdesrankning 1–30."));
   $("#data-source").textContent =
     source +
     (entry?.received
@@ -2139,12 +2179,12 @@ async function loadMarket(force = false) {
         ? normalizePools(body, received)
         : normalizeMarkets(body);
     if (serial !== requestId) return;
-    cache.set(selected, { coins, received, error: null, loading: false });
+    cache.set(selected, { coins, received, error: null, loading: false, notice: response.headers.get("X-Market-Notice") });
     marketFailures.delete(selected);
     marketRetryAt.delete(selected);
-    if (selected !== "new") coins.forEach((q) => quotes.set(q.id, q));
+    if (selected !== "new") coins.forEach(mergeQuote);
     activity(
-      `${coins.length} ${selected === "new" ? "pooler" : "kryptokurser"} hämtade från ${selected === "new" ? "GeckoTerminal" : "CoinGecko"}.`,
+      `${coins.length} ${selected === "new" ? "pooler" : "kryptokurser"} hämtade från ${[...new Set(coins.map(q=>q.source))].join(", ")}.`, false,
     );
   } catch (error) {
     if (serial !== requestId) return;
@@ -2257,6 +2297,14 @@ function openTrade(preselected) {
   const costLabel = el("label", "Simulera kostnader: 0,10 % avgift + 0,05 % ogynnsam prisrörelse per order");
   costLabel.prepend(realistic);
   form.append(costLabel);
+  const useBook = el("input");
+  useBook.type = "checkbox";
+  useBook.id = "trade-book";
+  useBook.checked = serverMode && feedsEnabled && orderBookIds.includes(select.value);
+  const bookLabel = el("label", "Använd färsk köp-/säljkurs och tillgängligt antal på bästa prisnivån (simulerat delavslut)");
+  bookLabel.prepend(useBook);
+  bookLabel.hidden = !feedsEnabled;
+  form.append(bookLabel);
   const result = paragraph("", "form-result");
   result.setAttribute("role", "status");
   for (const [text, control] of [
@@ -2273,6 +2321,8 @@ function openTrade(preselected) {
   form.append(submit);
   function preview() {
     const q = quotes.get(select.value);
+    useBook.disabled = !orderBookIds.includes(select.value);
+    if (useBook.disabled) useBook.checked = false;
     const execution = Number.isFinite(q.price) ? q.price * (1 + (side.value === "buy" ? 1 : -1) * (realistic.checked ? 0.0005 : 0)) : NaN;
     const gross = execution * Number(qty.value);
     const fee = gross * (realistic.checked ? 0.001 : 0);
@@ -2282,20 +2332,32 @@ function openTrade(preselected) {
   qty.oninput = preview;
   side.onchange = preview;
   realistic.onchange = preview;
-  form.onsubmit = (e) => {
+  form.onsubmit = async (e) => {
     e.preventDefault();
+    if (submit.disabled) return;
+    submit.disabled = true;
     try {
+      if (sharedMode && sharedPaused) throw new Error("Lös lagringskonflikten under Lagring & synkning innan nästa order.");
       if (ledger.length >= 1000)
         throw new Error(
           "Maximalt 1 000 lokala order. Exportera rapport och återställ för en ny simulering.",
         );
+      let executionQuote = quotes.get(select.value);
+      if (useBook.checked) {
+        result.textContent = "Hämtar färsk orderbok och simulerar 0,5 sekunders orderfördröjning…";
+        const response = await fetch(`/api/execution-quote?id=${encodeURIComponent(select.value)}`, { signal: AbortSignal.timeout(15000) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Orderboken kunde inte hämtas. Ingen order genomfördes.");
+        executionQuote = data;
+        await new Promise(resolve=>setTimeout(resolve,500));
+      }
       const { wallet: next, trade } = executeTrade(
         wallet,
-        quotes.get(select.value),
+        executionQuote,
         side.value,
         Number(qty.value),
         Date.now(),
-        realistic.checked ? { feeBps: 10, slippageBps: 5 } : {},
+        { feeBps: realistic.checked ? 10 : 0, slippageBps: realistic.checked ? 5 : 0, useOrderBook: useBook.checked },
       );
       wallet = next;
       ledger.push(trade);
@@ -2305,16 +2367,16 @@ function openTrade(preselected) {
       save();
       renderSummary();
       preview();
-      result.textContent = `Simulerad order genomförd. ${trade.side === "buy" ? "Köpt" : "Sålt"} ${number(trade.quantity)} ${trade.symbol}. Saldo ${money(wallet.cash)}. Ingen verklig order har skickats.`;
+      result.textContent = `Simulerad order genomförd. ${trade.side === "buy" ? "Köpt" : "Sålt"} ${number(trade.quantity)} ${trade.symbol}.${trade.remainingQuantity > 0 ? ` Delavslut: resterande ${number(trade.remainingQuantity)} makulerades; inget väntande orderlöfte.` : ""} Saldo ${money(wallet.cash)}. Ingen verklig order har skickats.`;
       qty.value = "";
     } catch (error) {
       result.textContent = error.message;
-    }
+    } finally { submit.disabled = false; }
   };
   open(
     "Handel · paper trading",
     paragraph(
-      "Simulerade USD med verkliga CoinGecko-referenskurser, högst fem minuter gamla. Kostnadsmodellen är ett antagande, inte observerad spread eller orderboksdjup. Kurser kan vara fördröjda. Ingen verklig order skickas.",
+      "Simulerade USD. Referenskurser får vara högst fem minuter gamla. Orderboksmodellen hämtar bästa prisnivån från Coinbase Exchange och avvisar observationer äldre än tio sekunder. Avgift, extra prispåslag och fördröjning är antaganden. Orderbok är en ögonblicksbild, ingen garanti för ett verkligt avslut.",
       "notice warning",
     ),
     price,
@@ -2528,6 +2590,8 @@ function voice(name) {
   };
 }
 const handlers = {
+  health: () => openHealth(),
+  sync: () => openSharedStorage(),
   agents: () => openAgents(),
   office: () => {
     const tour = el("div", undefined, "office-tour");
@@ -2540,22 +2604,8 @@ const handlers = {
       tour,
     );
   },
-  exchange: (n) =>
-    open(
-      n,
-      paragraph(
-        "Klockan visar korrekt lokal tidszon. Börs- och guldkurser samt öppettider är inte anslutna. Vi visar inga illustrativa priser som live-data.",
-        "notice",
-      ),
-      paragraph("Riktiga kryptokurser finns i marknadsbevakningen längst ned."),
-    ),
-  calendar: () =>
-    open(
-      "Kommande händelser",
-      paragraph(
-        "Ingen kalenderkälla är ansluten. Inga exempel på ekonomiska händelser visas som verkliga.",
-      ),
-    ),
+  exchange: (n) => openExchange(n),
+  calendar: () => openCalendar(),
   analysis: () => openAnalysis(),
   trade: () => openTrade(),
   strategy: () =>
@@ -2712,7 +2762,7 @@ function privacy() {
   open(
     "Lagring & integritet",
     paragraph(
-      "Chattar, order och aktiviteter lagras i localStorage i denna testfil, separat från den publicerade webbplatsen. Dela inte hemligheter i chatten. Export innehåller order och aktiviteter, men inte chatten. Röstfunktioner använder webbläsarens tjänster först efter ditt val.",
+      `${sharedMode ? "Chattar, order och aktiviteter synkas till den privata testdatabasen och finns också i denna webbläsare. Alla med testlösenordet delar samma arbetsyta. Radering här gäller enbart den lokala kopian; serverdata och serverbackuper raderas inte och kan läsas in igen." : "Chattar, order och aktiviteter lagras i localStorage i denna testfil, separat från den publicerade webbplatsen."} Dela inte hemligheter i chatten. Rapportexport saknar chatten; fullständig backup under Lagring & synkning innehåller den. Röstfunktioner använder webbläsarens tjänster först efter ditt val.`,
     ),
     button("Exportera rapport före radering", downloadReport),
     label,
@@ -2765,6 +2815,9 @@ async function initializeRuntime() {
     const config = await response.json();
     if (config.mode !== "server-preview") return;
     serverMode = true;
+    feedsEnabled = config.marketFeedsEnabled === true;
+    orderBookIds = Array.isArray(config.orderBookIds) ? config.orderBookIds : [];
+    sharedMode = config.sharedStorageConfigured === true;
     aiConfigured = config.aiConfigured === true;
     aiProviderName =
       typeof config.aiProvider === "string" ? config.aiProvider : "OpenAI";
@@ -2786,15 +2839,216 @@ async function initializeRuntime() {
     $("#chat-ai-controls").hidden = false;
     $("#use-ai").disabled = !aiConfigured;
     $("#chat-note").textContent =
-      `AI-svar är valfria och skickar din fråga samt lokala paper-uppgifter till testservern och ${aiProviderName}. Chatt sparas i din webbläsare. Inga verkliga order utförs. ${config.aiUsageMode === "free-test" ? "Testet kräver en nyckel från ett Google-projekt utan fakturering. Gratisvillkor kan tillåta användning av indata för produktförbättring; använd bara testdata." : "Betald API-drift är uttryckligen vald."}`;
+      `AI-svar är valfria och skickar din fråga samt paper-uppgifter till testservern och ${aiProviderName}. ${sharedMode ? "Chatt och testsession synkas till den privata testdatabasen; lokal kopia sparas också." : "Chatt sparas i din webbläsare."} Inga verkliga order utförs. ${config.aiUsageMode === "free-test" ? "Testet kräver en nyckel från ett Google-projekt utan fakturering. Gratisvillkor kan tillåta användning av indata för produktförbättring; använd bara testdata." : "Betald API-drift är uttryckligen vald."}`;
     $("#logout").hidden = false;
     if (aiConfigured)
       $("#mode-note").textContent =
         "Ingen verklig handel. Valfria AI-svar via testservern. Paper trading använder fördröjda referenskurser och valbara simulerade kostnader.";
     renderChat();
+    if (feedsEnabled) { refreshPortfolio(); refreshOverview(); }
+    if (sharedMode) initializeSharedState();
   } catch {
     /* Static/offline mode remains fully usable. */
   }
+}
+function mergeQuote(q) {
+  const old = quotes.get(q.id);
+  if (!old || q.updated >= old.updated || !isFresh(old)) quotes.set(q.id, q);
+}
+async function refreshPortfolio() {
+  if (!feedsEnabled || document.hidden || portfolioRequest || !$("#auto-market").checked) return;
+  portfolioRequest = true;
+  try {
+    const ids = [...new Set(["bitcoin", "ethereum", "solana", ...Object.keys(wallet.positions)])];
+    const data = { quotes:[], missing:[], received:null };
+    for (let i=0;i<ids.length;i+=50) {
+      if (document.hidden) { data.missing.push(...ids.slice(i)); break; }
+      const response = await fetch(`/api/snapshot?ids=${encodeURIComponent(ids.slice(i,i+50).join(","))}`, { signal: AbortSignal.timeout(30000) });
+      const part = await response.json();
+      if (!response.ok || !Array.isArray(part.quotes)) throw new Error("Innehavskurser kunde inte hämtas.");
+      data.quotes.push(...part.quotes); data.missing.push(...(part.missing || [])); data.received=part.received;
+    }
+    data.quotes.forEach(mergeQuote);
+    const missing = Object.keys(wallet.positions).filter(id=>!isFresh(quotes.get(id)));
+    const notRefreshed = (data.missing || []).filter(id=>Object.hasOwn(wallet.positions,id));
+    $("#portfolio-feed-status").textContent = `${missing.length ? "Ofullständigt kursunderlag: " + missing.join(", ") : notRefreshed.length ? "Ingen ny kurs för: " + notRefreshed.join(", ") + "; tidigare kurstid gäller" : "Innehavskontroll klar"} · ${timestamp(data.received)}. Kurser uppdateras oavsett vald marknadsflik.`;
+    renderSummary();
+  } catch {
+    $("#portfolio-feed-status").textContent = "Innehavskurser kunde inte uppdateras. Äldre tidsstämplar behålls; inaktuella kurser blockeras.";
+    renderSummary();
+  } finally { portfolioRequest = false; }
+}
+setInterval(refreshPortfolio, 30000);
+document.addEventListener("visibilitychange", refreshPortfolio);
+
+let overviewData = [];
+async function refreshOverview() {
+  if (!feedsEnabled || document.hidden) return;
+  try {
+    const response = await fetch("/api/overview", { signal: AbortSignal.timeout(18000) });
+    if (!response.ok) return;
+    overviewData = await response.json();
+    $$("[data-action='exchange']").forEach((tile,i)=>{
+      const q = overviewData[i];
+      const note = tile.querySelector("small:last-child");
+      tile.querySelector("strong").textContent = Number.isFinite(q?.price) ? number(q.price) : "—";
+      note.textContent = q?.price ? `${q.name} · möjlig fördröjning${Number.isFinite(q.delayMinutes) ? " " + q.delayMinutes + " min" : ""}` : "Datakällan är otillgänglig";
+      if (i === 3) tile.querySelector("span").textContent = "▰ Guldtermin · USD/oz";
+    });
+  } catch { /* Original clock panel remains usable; no invented prices. */ }
+}
+setInterval(refreshOverview, 300000);
+function openExchange(name) {
+  const tiles = $$("[data-action='exchange']");
+  const index = tiles.findIndex(t=>t.dataset.name === name);
+  const q = overviewData[index];
+  open(name,
+    paragraph(q?.price ? `${q.name}: ${number(q.price)} ${q.unit}. Kurstid ${timestamp(q.updated)}. Källa ${q.source}.` : "Ingen användbar kurs har hämtats. Världsklockan fungerar oberoende av kursflödet."),
+    paragraph(index === 3 ? "Detta är en guldtermin (GC=F), inte spotpriset XAU/USD. Terminskontrakt kan rullas och avvika från spot." : "Indexkurserna kan vara fördröjda eller avse senaste avslut när börsen är stängd. Ingen paper trading sker i denna panel."),
+    paragraph("Kurstiden är leverantörens tid, inte tiden då du öppnade rutan."));
+}
+async function openCalendar() {
+  const text = paragraph(feedsEnabled ? "Hämtar officiell publiceringskalender…" : "Kalenderkälla är inte aktiverad i detta läge.");
+  open("Kommande händelser", text);
+  if (!feedsEnabled) return;
+  try {
+    const response = await fetch("/api/calendar", { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    text.textContent = `${data.source}. ${data.scope}. Hämtad ${timestamp(data.received)}.`;
+    const list = el("ul");
+    for (const event of data.events) list.append(el("li", `${timestamp(event.time)} · ${event.title}`));
+    if (!data.events.length) list.append(el("li", "Källan saknar kommande händelser med stödd tidsangivelse. Ingen komplett global kalender påstås."));
+    if (text.isConnected) text.after(list);
+  } catch { text.textContent = "Kalenderkällan kunde inte hämtas. Inga exempel eller gissade händelser visas."; }
+}
+async function openHealth() {
+  const info = paragraph(serverMode ? "Kontrollerar driftstatus…" : "Lokal granskning. Serverns driftstatus är inte tillgänglig.");
+  open("Driftstatus", info);
+  if (!serverMode) return;
+  try {
+    const response = await fetch("/api/status", { signal: AbortSignal.timeout(10000) });
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    info.textContent = `Kontrollerad ${timestamp(data.time)}. AI: ${data.ai.provider}, ${data.ai.configured ? "konfigurerad" : "inte ansluten"}. Anrop ${data.ai.callsThisHour}/${data.ai.maxRuns} denna servertimme. Senaste lyckade AI-svar: ${timestamp(data.ai.lastSuccess)}. Lagring: ${data.storage.configured ? data.storage.healthy ? "databas svarar" : "databas behöver kontrolleras" : "endast lokal"}. ${sharedMessage}.`;
+    const list = el("ul");
+    for (const [key, value] of Object.entries(data.feeds)) list.append(el("li", `${key}: ${value.state === "ok" ? "hämtning lyckades" : value.message}. Senast lyckad: ${timestamp(value.lastSuccess)}.`));
+    for (const [key, value] of Object.entries(data.crypto)) list.append(el("li", `CoinGecko ${key}: senast hämtad ${timestamp(value.lastSuccess)}.`));
+    if (data.ai.lastError) list.append(el("li", `Senaste AI-fel: ${data.ai.lastError.message}`));
+    if (data.storage.setupError) list.append(el("li", data.storage.setupError));
+    if (!list.children.length) list.append(el("li", "Inga källkontroller har ännu gjorts sedan servern startade."));
+    if (info.isConnected) info.after(list, paragraph("Källstatus avser hämtningar. Kontrollera alltid den enskilda kursens tidsstämpel. Kvoter och mätvärden startar om med serverprocessen."));
+  } catch { info.textContent = "Driftstatus kunde inte hämtas. Det är ett anslutningsfel, inte ett friskbesked."; }
+}
+
+function stateHasData(state) { return state.ledger.length || state.chats.shared.length || state.chats.agents.length; }
+function canonical(value) {
+  return JSON.stringify(value, (_,v)=>v && typeof v === "object" && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v).sort().map(key=>[key,v[key]])) : v);
+}
+function sameWorkspace(a,b) { return canonical(a.ledger) === canonical(b.ledger) && canonical(a.chats) === canonical(b.chats); }
+let beforeSharedCopy = null;
+function replaceWorkspace(state) {
+  const nextWallet = replayLedger(state.ledger);
+  for (const key of ["shared","agents"]) if (!Array.isArray(state.chats?.[key]) || state.chats[key].length > 100 || state.chats[key].some(m=>!m || typeof m.text !== "string" || m.text.length > 12000 || !["Du","System",...AGENTS.map(a=>a.name)].includes(m.author) || !Number.isFinite(m.time))) throw new Error("Ogiltig chatthistorik.");
+  if (state.version !== 1 || !Array.isArray(state.events) || state.events.length > 100 || state.events.some(e=>!e || typeof e.text !== "string" || e.text.length > 2000 || !Number.isFinite(e.time))) throw new Error("Ogiltigt sparformat.");
+  wallet = nextWallet; ledger = state.ledger; chats = state.chats; events = state.events;
+  save(false); renderChat(); renderSummary(); renderActivities();
+}
+function applySharedState(data) {
+  replaceWorkspace(data.state);
+  sharedRevision = data.revision; sharedDirty = false; sharedPaused = false; pendingShared = null;
+  try { localStorage.removeItem(KEY + ":unsynced"); } catch { /* Memory remains usable. */ }
+  sharedMessage = `Synkad med servern ${timestamp(Date.now())}`;
+  storageWarning(sharedMessage);
+  refreshPortfolio();
+}
+async function readSharedState() {
+  const response = await fetch("/api/state", { signal: AbortSignal.timeout(15000) });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Databasen kunde inte läsas.");
+  return data;
+}
+async function initializeSharedState() {
+  try {
+    const data = await readSharedState();
+    if (stateHasData(localState()) && !sameWorkspace(localState(), data.state)) {
+      pendingShared = data; sharedPaused = true;
+      sharedMessage = "Välj vilken historik du vill använda under Lagring & synkning. Inga data har skrivits över.";
+      storageWarning(sharedMessage);
+    } else applySharedState(data);
+  } catch(e) {
+    sharedPaused = true; sharedMessage = e.message; storageWarning(sharedMessage);
+  }
+}
+async function pushSharedState() {
+  if (!sharedMode || sharedPaused || sharedBusy || sharedRevision === null || !sharedDirty) return;
+  sharedBusy = true;
+  sharedDirty = false;
+  try {
+    const response = await fetch("/api/state", { method:"PUT", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({revision:sharedRevision,state:localState()}), signal:AbortSignal.timeout(15000) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Synkning misslyckades.");
+    sharedRevision = data.revision;
+    sharedMessage = `Sparad på servern ${timestamp(Date.now())}`;
+    if (!sharedDirty) try { localStorage.removeItem(KEY + ":unsynced"); } catch { /* Local storage may be unavailable. */ }
+    storageWarning(sharedMessage);
+  } catch(e) {
+    sharedPaused = true; sharedDirty = true; sharedMessage = e.message;
+    storageWarning(`${sharedMessage} Lokal kopia bevaras. Öppna Lagring & synkning.`);
+  } finally {
+    sharedBusy = false;
+    if (sharedDirty && !sharedPaused) sharedTimer = setTimeout(pushSharedState,800);
+  }
+}
+setInterval(async()=>{
+  if (!sharedMode || sharedPaused || sharedDirty || sharedBusy || document.hidden) return;
+  try { const data=await readSharedState(); if (data.revision !== sharedRevision && !sharedDirty && !sharedBusy) applySharedState(data); }
+  catch { sharedMessage="Servern kunde inte kontrolleras; lokala data bevaras."; storageWarning(sharedMessage); }
+},20000);
+function exportWorkspace(state = localState()) {
+  const blob = new Blob([JSON.stringify({format:"ponce-nova-workspace-backup-v1",exportedAt:new Date().toISOString(),state},null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob), a = el("a");
+  a.href=url; a.download="Ponce_Nova_fullstandig_testbackup.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function openSharedStorage() {
+  const info = paragraph(sharedMode ? sharedMessage : "Lokal lagring används. Neon Free är valt för beständig testlagring. Skapa en separat gratisdatabas och spara anslutningssträngen som DATABASE_URL i Render. Appen skapar sina egna tabeller. Dela aldrig anslutningssträngen i chatten.");
+  const actions = el("div",undefined,"meeting-actions");
+  actions.append(button("Ladda ned fullständig backup (inklusive chatt)",()=>exportWorkspace()));
+  if (sharedMode) {
+    actions.append(button("Hämta serverversion och bevara lokal kopia",async()=>{
+      try {
+        const data=await readSharedState();
+        beforeSharedCopy=JSON.parse(JSON.stringify(localState()));
+        try { localStorage.setItem(KEY+":before-shared-sync",JSON.stringify(beforeSharedCopy)); } catch { /* In-memory backup is retained and can be downloaded. */ }
+        applySharedState(data); openSharedStorage();
+      } catch(e) { info.textContent=e.message; }
+    }));
+    if (pendingShared && !stateHasData(pendingShared.state)) actions.append(button("För över min lokala historik till tom databas",async()=>{
+      sharedRevision=pendingShared.revision; sharedPaused=false; sharedDirty=true; await pushSharedState(); info.textContent=sharedMessage;
+    }));
+  }
+  try { beforeSharedCopy ||= JSON.parse(localStorage.getItem(KEY+":before-shared-sync") || "null"); } catch { /* No local backup available. */ }
+  if (beforeSharedCopy) actions.append(button("Ladda ned bevarad lokal kopia",()=>exportWorkspace(beforeSharedCopy)));
+  const file = el("input"); file.type="file"; file.accept=".json,application/json"; file.id="workspace-backup-file";
+  const fileLabel=el("label","Återställ från nedladdad fullständig backup"); fileLabel.append(file);
+  const confirm=el("input");confirm.type="checkbox";confirm.id="confirm-workspace-restore";
+  const confirmLabel=el("label"," Jag vill ersätta testsessionen med vald backup. Nuvarande kopia bevaras lokalt.");confirmLabel.prepend(confirm);
+  const restore=button("Återställ vald backup",async()=>{
+    if(!confirm.checked || !file.files?.[0]) {info.textContent="Välj en backupfil och bekräfta återställningen först.";return;}
+    if(sharedMode && (sharedPaused || sharedRevision === null || sharedBusy)) {info.textContent="Lös först pågående synkning eller versionskonflikt.";return;}
+    try {
+      if(file.files[0].size>2800000)throw new Error("Backupfilen är för stor.");
+      const parsed=JSON.parse(await file.files[0].text());
+      if(parsed.format!=="ponce-nova-workspace-backup-v1")throw new Error("Välj en fullständig Ponce & Nova-backup.");
+      beforeSharedCopy=JSON.parse(JSON.stringify(localState()));
+      replaceWorkspace(parsed.state); // Validate everything before changing any live state.
+      try{localStorage.setItem(KEY+":before-shared-sync",JSON.stringify(beforeSharedCopy));}catch{/* In-memory copy retained. */}
+      save();info.textContent=sharedMode?"Backup inläst lokalt. Inväntar säker serverlagring.":"Backup inläst och sparad lokalt.";
+    }catch(e){info.textContent=e.message;}
+  });
+  open("Lagring & synkning",info,paragraph("Delad lagring avser denna privata testmiljö och alla som har dess lösenord. Vid versionskonflikt pausas synkningen och nya order tills du väljer serverversionen. De senaste 20 serverversionerna sparas i samma databas; nedladdad backup skyddar även om databasen försvinner."),actions,fileLabel,confirmLabel,restore);
 }
 function paperContext() {
   return {
@@ -2951,7 +3205,7 @@ $("#cancel-board").onclick = () => boardController?.abort();
 </script>
   </head>
   <body>
-<aside class="review-banner" aria-label="Förhandsvisning">FÖRHANDSVISNING · PR #2 · Kodversion 81c5ab71206a · Separat testlagring · Ingen livehandel eller publicering</aside>
+<aside class="review-banner" aria-label="Förhandsvisning">FÖRHANDSVISNING · PR #2 · Kodversion bf7580df9c82 · Separat testlagring · Ingen livehandel eller publicering</aside>
     <a class="skip" href="#dashboard">Till dashboard</a>
     <div class="city" aria-hidden="true">
       <div class="skyline" id="skyline"></div>
@@ -2979,6 +3233,8 @@ $("#cancel-board").onclick = () => boardController?.abort();
         <div class="mode">
           <span id="runtime-status">● Lokal simulering · Ingen livehandel</span>
           <button data-action="agents">Alla agenter</button>
+          <button data-action="health">Driftstatus</button>
+          <button data-action="sync">Lagring & synkning</button>
           <button data-action="office">Visa kontoret</button>
           <button id="motion" aria-pressed="false">Pausa stad</button>
         </div>
@@ -3215,6 +3471,7 @@ $("#cancel-board").onclick = () => boardController?.abort();
               <p id="cash" class="value">—</p>
               <p id="profit" class="green">—</p>
               <p class="micro">Startkapital: 10 000 simulerade USD</p>
+              <p class="micro" id="portfolio-feed-status">Innehav värderas bara med färska kurser.</p>
             </div>
             <dl>
               <div>
@@ -3318,7 +3575,10 @@ $("#cancel-board").onclick = () => boardController?.abort();
         </p>
         <span
           >Källor: <a href="https://www.coingecko.com/">CoinGecko</a> ·
-          <a href="https://www.geckoterminal.com/">GeckoTerminal</a></span
+          <a href="https://www.geckoterminal.com/">GeckoTerminal</a> ·
+          <a href="https://www.coinbase.com/">Coinbase Exchange</a> ·
+          <a href="https://finance.yahoo.com/">Yahoo Finance</a> ·
+          <a href="https://www.bls.gov/schedule/">BLS</a></span
         ><button class="text-button" data-action="privacy">
           Lagring & integritet</button
         ><span id="storage-status" role="status"></span>

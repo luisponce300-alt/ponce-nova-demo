@@ -37,6 +37,8 @@
         <div class="mode">
           <span id="runtime-status">● Lokal simulering · Ingen livehandel</span>
           <button data-action="agents">Alla agenter</button>
+          <button data-action="health">Driftstatus</button>
+          <button data-action="sync">Lagring & synkning</button>
           <button data-action="office">Visa kontoret</button>
           <button id="motion" aria-pressed="false">Pausa stad</button>
         </div>
@@ -273,6 +275,7 @@
               <p id="cash" class="value">—</p>
               <p id="profit" class="green">—</p>
               <p class="micro">Startkapital: 10 000 simulerade USD</p>
+              <p class="micro" id="portfolio-feed-status">Innehav värderas bara med färska kurser.</p>
             </div>
             <dl>
               <div>
@@ -376,7 +379,10 @@
         </p>
         <span
           >Källor: <a href="https://www.coingecko.com/">CoinGecko</a> ·
-          <a href="https://www.geckoterminal.com/">GeckoTerminal</a></span
+          <a href="https://www.geckoterminal.com/">GeckoTerminal</a> ·
+          <a href="https://www.coinbase.com/">Coinbase Exchange</a> ·
+          <a href="https://finance.yahoo.com/">Yahoo Finance</a> ·
+          <a href="https://www.bls.gov/schedule/">BLS</a></span
         ><button class="text-button" data-action="privacy">
           Lagring & integritet</button
         ><span id="storage-status" role="status"></span>

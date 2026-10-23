@@ -37,7 +37,9 @@ export function normalizeMarkets(data) {
       change: numeric(c.price_change_percentage_24h),
       cap: numeric(c.market_cap),
       updated: Date.parse(c.last_updated),
-      source: "CoinGecko",
+      source: c._source === "Coinbase Exchange" ? "Coinbase Exchange" : "CoinGecko",
+      bid: numeric(c.bid),
+      ask: numeric(c.ask),
       tradable: true,
     }));
   if (!coins.length) throw new Error("Datakällan saknar användbara tokens.");
@@ -150,10 +152,19 @@ export function executeTrade(wallet, quote, side, quantity, now = Date.now(), co
     throw new Error(
       "Kursen saknas eller är äldre än fem minuter. Uppdatera data först.",
     );
-  const { feeBps = 0, slippageBps = 0 } = costs;
+  const { feeBps = 0, slippageBps = 0, useOrderBook = false } = costs;
   if (![feeBps, slippageBps].every((n) => Number.isFinite(n) && n >= 0 && n <= 100))
     throw new Error("Ogiltiga simulerade handelskostnader.");
-  const price = quote.price * (1 + (side === "buy" ? 1 : -1) * slippageBps / 10000);
+  if (!positive(quantity)) throw new Error("Ange ett giltigt positivt antal.");
+  const requestedQuantity = quantity;
+  const bookPrice = side === "buy" ? quote.ask : quote.bid;
+  const bookSize = side === "buy" ? quote.askSize : quote.bidSize;
+  if (useOrderBook) {
+    if (!(positive(bookPrice) && positive(bookSize)) || now - quote.updated > 10000)
+      throw new Error("Färsk orderbok saknas. Ordern avvisades utan avslut.");
+    quantity = Math.min(quantity, bookSize);
+  }
+  const price = (useOrderBook ? bookPrice : quote.price) * (1 + (side === "buy" ? 1 : -1) * slippageBps / 10000);
   const trade = {
     id: quote.id,
     symbol: quote.symbol,
@@ -164,6 +175,9 @@ export function executeTrade(wallet, quote, side, quantity, now = Date.now(), co
     fee: quantity * price * feeBps / 10000,
     feeBps,
     slippageBps,
+    requestedQuantity,
+    remainingQuantity: requestedQuantity - quantity,
+    executionModel: useOrderBook ? "observed-best-level-ioc-simulation" : "reference-simulation",
     time: now,
     quoteTime: quote.updated,
     source: quote.source,

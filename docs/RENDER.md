@@ -72,3 +72,9 @@ A NEW Free/Frankfurt service was created: `ponce-nova-test`, service ID `srv-dbd
 `PREVIEW_PASSWORD` and `SESSION_SECRET` were generated securely during creation and stored only in Render. The owner can reveal `PREVIEW_PASSWORD` in the service's **Environment** tab to log in. No password was printed or committed. **AI_API_KEY is absent**, so real AI replies are not enabled. Supply that key directly in Render's protected service settings and redeploy/restart, then verify one actual AI response before claiming AI readiness.
 
 Direct external checks from this cloud machine currently receive a network-proxy `403 Forbidden` for the new onrender.com hostname. The exact hostname has been added to the environment network draft, but a draft does not apply runtime access. Render's live deployment status and configuration were verified through its API; independent external HTTP/login checks remain pending. Local authenticated browser/server tests and real upstream market-data rendering passed earlier. Main and the production Pages site remain unchanged.
+
+## Current serious-test build
+
+The current build adds `MARKET_FEEDS_ENABLED=true`, optional server-only Neon `DATABASE_URL`, TLS-verified PostgreSQL, automatic schema initialization, revision/conflict checks and previous-version backups. Render builds run `npm ci --omit=dev --ignore-scripts`; `pg` is a production dependency and PGlite is test-only. Secrets must stay in Render, never in Git/client code. A malformed database setting produces a diagnostic/local mode rather than breaking the whole market dashboard.
+
+The Gemini model is pinned to 3.8 Flash (not the retired-for-new-users 2.5 Flash). [Current serious-test guide](SERIOUS_TESTING.md) and [market data limits](MARKET_DATA.md) supersede historical prepared/not-connected statements above. Actual live verification is recorded in the PR. No new paid Render service/disk/database has been provisioned.

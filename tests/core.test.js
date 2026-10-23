@@ -228,3 +228,13 @@ test("fees prevent overspending and invalid costs cannot create money", () => {
   for (const costs of [{feeBps:-1},{slippageBps:NaN},{slippageBps:101}])
     assert.throws(() => executeTrade(emptyWallet(), quote(), "buy", 1, now, costs));
 });
+test("observed order book simulates adverse spread and partial IOC fill without inventing liquidity",()=>{
+  const q=quote({price:100,bid:99,ask:101,bidSize:0.5,askSize:1,source:"Coinbase Exchange orderbok"});
+  const buy=executeTrade(emptyWallet(),q,"buy",2,now,{feeBps:10,useOrderBook:true});
+  assert.equal(buy.trade.quantity,1);assert.equal(buy.trade.remainingQuantity,1);assert.equal(buy.trade.price,101);
+  assert.equal(buy.wallet.cash,10000-101-0.101);
+  const sell=executeTrade(buy.wallet,q,"sell",1,now,{useOrderBook:true});
+  assert.equal(sell.trade.quantity,0.5);assert.equal(sell.wallet.positions.bitcoin.quantity,0.5);
+  for(const bad of [quote(),{...q,askSize:0},{...q,updated:now-10001}])
+    assert.throws(()=>executeTrade(emptyWallet(),bad,"buy",1,now,{useOrderBook:true}));
+});
