@@ -1378,3 +1378,11 @@ dialog::backdrop {
 #ai-status:empty {
   display: none;
 }
+
+#cancel-board {
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+#cancel-board[hidden] {
+  display: none;
+}

@@ -147,7 +147,10 @@
           ></div>
           <div id="chat-ai-controls" hidden>
             <label
-              ><input id="use-ai" type="checkbox" /> AI-svar (OpenAI)</label
+              ><input id="use-ai" type="checkbox" /> AI-svar (<span
+                id="ai-provider-name"
+                >ej ansluten</span
+              >)</label
             >
             <label
               >Agent
@@ -155,6 +158,9 @@
             ></label>
           </div>
           <p id="ai-status" class="micro" role="status"></p>
+          <button id="cancel-board" type="button" hidden>
+            Avbryt AI-mötet
+          </button>
           <form id="chat" class="chatrow">
             <button
               type="button"

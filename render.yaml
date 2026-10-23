@@ -20,9 +20,17 @@ services:
         generateValue: true
       - key: SESSION_SECRET
         generateValue: true
-      - key: AI_API_KEY
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_USAGE_MODE
+        value: free-test
+      - key: GEMINI_API_KEY
         sync: false
-      - key: AI_MODEL
-        value: gpt-4.1-mini
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_FREE_TIER_CONFIRMED
+        value: "false"
+      - key: AI_MIN_INTERVAL_SECONDS
+        value: "30"
       - key: MAX_AGENT_RUNS_PER_HOUR
         value: 20

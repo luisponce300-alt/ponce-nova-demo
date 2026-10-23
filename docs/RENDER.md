@@ -1,5 +1,7 @@
 # Separat Render-testmiljö med AI-roller
 
+**Aktuellt AI-val:** Gemini 2.5 Flash för bygg/test på ett av ägaren verifierat Google-projekt på Free tier. Se [aktuella inställningar och säker nyckelguide](AI_PROVIDERS.md). OpenAI-inställningarna nedan beskriver den tidigare adaptern och är nu endast relevanta för uttryckligen vald betald drift. AI_PROVIDER/AI_USAGE_MODE och Gemini-inställningarna i render.yaml är styrande för nya tester. Ingen gratis- eller liveverifiering av en riktig Gemini-nyckel har gjorts ännu.
+
 Detta är en lösenordsskyddad testtjänst, helt separat från befintlig GitHub Pages. GitHub-grenen är `feature/issue-1-interactive-dashboard`. Ingen merge till main krävs. `render.yaml` beskriver en ny Node-webbtjänst `ponce-nova-test` på Free-planen i Frankfurt med automatisk deployment avstängd. Inga befintliga tjänster eller domäner ska ändras. Render kan ha kontokrav för att aktivera Free; välj inte en betalplan utan ägarens godkännande.
 
 ## Åtkomst för assistenten

@@ -7,6 +7,8 @@ const ENV = {
   PREVIEW_PASSWORD: "test-only-password-not-a-real-secret",
   SESSION_SECRET: "test-only-session-secret-at-least-32-chars",
   AI_API_KEY: "test-only-provider-key",
+  AI_PROVIDER: "openai",
+  AI_USAGE_MODE: "paid",
 };
 const MARKET = [
   {
@@ -290,4 +292,65 @@ test("sessions expire and production cookies are secure", async (t) => {
     body: new URLSearchParams({ password: ENV.PREVIEW_PASSWORD }),
   });
   assert.match(r.headers.get("set-cookie"), /; Secure/);
+});
+
+test("Gemini server confirms free tier and enforces spacing without hidden provider fallback", async (t) => {
+  let clock = NOW;
+  const requests = [];
+  const s = await setup(t, {
+    env: {
+      AI_PROVIDER: "gemini",
+      AI_USAGE_MODE: "free-test",
+      GEMINI_API_KEY: "test-only-gemini-key",
+      GEMINI_FREE_TIER_CONFIRMED: "true",
+    },
+    now: () => clock,
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options });
+      return Response.json(
+        url.includes(":generateContent")
+          ? {
+              candidates: [
+                {
+                  finishReason: "STOP",
+                  content: { parts: [{ text: "Test Gemini answer" }] },
+                },
+              ],
+            }
+          : MARKET,
+      );
+    },
+  });
+  const config = await (await s.get("/api/config")).json();
+  assert.equal(config.aiProvider, "Google Gemini");
+  assert.equal(config.aiUsageMode, "free-test");
+  assert.equal(config.minimumIntervalMs, 30000);
+  assert.equal((await s.run({ agentId: "ponce", message: "Hej" })).status, 200);
+  assert.equal(
+    (await s.run({ agentId: "nova", message: "Granska" })).status,
+    429,
+  );
+  clock += 30000;
+  assert.equal(
+    (await s.run({ agentId: "nova", message: "Granska" })).status,
+    200,
+  );
+  assert.equal(
+    requests.filter((x) => x.url.includes(":generateContent")).length,
+    2,
+  );
+  assert.ok(!requests.some((x) => x.url.includes("openai.com")));
+});
+test("unconfirmed Gemini free tier never calls any provider", async (t) => {
+  const s = await setup(t, {
+    env: {
+      AI_PROVIDER: "gemini",
+      AI_USAGE_MODE: "free-test",
+      GEMINI_API_KEY: "test-only-gemini-key",
+      GEMINI_FREE_TIER_CONFIRMED: "false",
+    },
+  });
+  assert.equal((await (await s.get("/api/config")).json()).aiConfigured, false);
+  assert.equal((await s.run({ agentId: "ponce", message: "Hej" })).status, 503);
+  assert.equal(s.calls.length, 0);
 });
