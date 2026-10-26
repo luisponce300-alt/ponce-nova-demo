@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Ponce & Nova · Agentrummet</title>
+    <link rel="stylesheet" href="/agent-room.css">
+    <script type="module" src="/agent-room.js"></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div><p class="eyebrow">ENKEL TESTMILJÖ</p><h1>Ponce & Nova</h1><p>Sju agentroller. En plats att prata och testa.</p></div>
+        <a href="/">Öppna dashboarden ↗</a>
+      </header>
+      <section class="connection" aria-label="Anslutning">
+        <p id="connection-status" role="status">Kontrollerar AI-anslutningen…</p>
+        <button id="connect" type="button">Kontrollera anslutning</button>
+      </section>
+      <div class="layout">
+        <aside aria-label="Välj agent">
+          <h2>Dina agenter</h2>
+          <nav id="agent-list"></nav>
+          <button id="group-view" type="button" aria-pressed="false">Gruppens chatt</button>
+          <p class="small">Rollerna svarar när du skickar en fråga. De kan inte utföra affärer eller ändra systemet.</p>
+        </aside>
+        <section class="chat" aria-labelledby="room-title">
+          <div class="chat-heading"><div><h2 id="room-title">Ponce</h2><p id="room-description"></p></div><button id="export" type="button">Spara chatt</button></div>
+          <div id="messages" role="log" aria-label="Meddelanden" aria-live="polite" tabindex="0"></div>
+          <button id="latest" type="button" hidden>↓ Senaste meddelandet</button>
+          <p id="activity" role="status">Välj en agent och skriv en fråga.</p>
+          <p id="countdown" class="small" role="status" hidden></p>
+          <form id="question-form">
+            <label for="question">Din fråga</label>
+            <textarea id="question" maxlength="2000" rows="3" placeholder="Skriv till Ponce eller välj en annan agent…" required></textarea>
+            <div class="actions"><button id="send" type="submit" disabled>Skicka till agenten</button><button id="ask-all" type="button" disabled>Fråga alla sju</button><button id="stop" type="button" hidden>Stoppa kommande svar</button></div>
+          </form>
+          <p id="limits" class="small">Gruppfrågan gör sju separata AI-anrop med pauser mellan svaren.</p>
+        </section>
+      </div>
+      <footer>
+        <p>Agentrummet använder inga marknadsflöden eller portföljdata. Frågan och högst sex korta tidigare meddelanden skickas till AI-leverantören. Gratisvillkor kan tillåta användning för produktförbättring. Använd bara testdata.</p>
+        <p id="storage-status">Chattarna sparas i denna webbläsare, separat från dashboarden.</p>
+        <form action="/logout" method="post"><button>Logga ut</button></form>
+      </footer>
+    </main>
+  </body>
+</html>

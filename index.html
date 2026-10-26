@@ -1,1 +1,406 @@
-<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ponce & Nova — Transparent Pixelstad</title><style>*{box-sizing:border-box}body{margin:0;color:#e7faff;font-family:Segoe UI,Arial,sans-serif;background:#040b17;overflow-x:hidden}.city{position:fixed;inset:0;z-index:-1;overflow:hidden;background:linear-gradient(#09162b 0%,#13243a 58%,#0a1323 58%)}.skyline{position:absolute;bottom:15%;width:100%;height:48%;display:flex;align-items:flex-end;gap:3px;opacity:.65}.building{flex:1;background:repeating-linear-gradient(90deg,#152e40 0 8px,#0b1b30 8px 13px);border:3px solid #24556a;box-shadow:inset 0 12px #36778b}.building:after{content:'';display:block;height:75%;margin:18px 6px;background:repeating-linear-gradient(0deg,transparent 0 17px,#3e9fa95e 18px 22px),repeating-linear-gradient(90deg,transparent 0 20px,#58c5c355 21px 26px)}.street{position:absolute;bottom:0;height:17%;width:100%;background:repeating-linear-gradient(90deg,#182a38 0 60px,#1a3341 60px 65px);border-top:12px solid #2d6571}.street:before{content:'';position:absolute;top:48%;left:0;width:100%;border-top:4px dashed #a3afae55}.sprite{position:absolute;bottom:6%;left:var(--start);width:15px;height:22px;background:var(--shirt);box-shadow:0 -11px #f0b995,0 -15px #382d4d,5px 6px #162946,-5px 6px #162946;image-rendering:pixelated;animation:walk var(--speed) linear infinite alternate;z-index:2}.sprite:nth-of-type(even){bottom:11%}@keyframes walk{from{transform:translateX(-25px) scaleX(1)}to{transform:translateX(140px) scaleX(-1)}}.wrap{max-width:1720px;margin:auto;padding:12px 16px 20px}.topline{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;margin-bottom:10px}.brand{font-size:24px;letter-spacing:2px;font-weight:800;color:#afffff;text-shadow:0 0 17px #00e9ff}.small{font-size:12px;color:#92becb}.glass{background:#061727bb;backdrop-filter:blur(4px);border:1px solid #34bcd36b;border-radius:12px;box-shadow:0 0 18px #04bfe822,inset 0 0 15px #0aa7ca0b}.market{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.tile{padding:14px;min-height:100px}.tile strong{font-size:14px;display:block;color:#bbfaff}.value{font-size:24px;margin:10px 0 4px}.muted{color:#8db2c3;font-size:12px}.green{color:#5af6bd}.purple{color:#d4a4ff}.gridmain{display:grid;grid-template-columns:1fr 1.12fr 1fr;gap:10px;margin-top:10px}.panel{padding:16px;min-height:300px}.panel h2{font-size:18px;margin:0 0 12px;color:#8eeaff}.portrait{width:72px;height:72px;border-radius:50%;border:2px solid #57deec;display:grid;place-items:center;background:linear-gradient(145deg,#16445b,#0b162d);font-size:28px;float:left;margin:2px 14px 12px 0}.panel p{font-size:13px;line-height:1.6;color:#c2dce5}.status{font-size:12px;color:#65efc2;margin-top:14px}.messages{height:165px;overflow:auto;padding:8px;border-radius:8px;background:#0312218c;margin-bottom:10px}.message{font-size:13px;padding:7px 9px;margin-bottom:6px;background:#17344a8c;border-radius:8px}.message b{color:#7ee7f6}.chatrow{display:flex;gap:7px}.chatrow input{min-width:0;flex:1;background:#041827;border:1px solid #398ca1;color:white;padding:10px;border-radius:8px}.chatrow button,.dept,.action{cursor:pointer;border:1px solid #33a4b9;background:#12364a;color:#d7fcff;border-radius:8px;padding:10px}.departments{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:10px}.dept{text-align:left;min-height:112px;background:#081a2fc4;backdrop-filter:blur(4px);border-top:3px solid var(--accent)}.dept b{display:block;font-size:14px;color:var(--accent);margin-bottom:12px}.dept span{font-size:12px;color:#afcbd7}.bottom{display:grid;grid-template-columns:1.1fr 1.2fr 1fr;gap:9px;margin-top:10px}.bottom .panel{min-height:135px}.bottom h2{font-size:15px}.bottom p{margin:5px 0}.footer{margin:10px 0;color:#9ab5c2;font-size:12px}.modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:20px;z-index:10}.modal.open{display:flex}.modal section{max-width:480px;padding:25px}.modal button{margin-top:12px}.floorlabel{position:fixed;right:10px;bottom:10px;color:#a8edec;font:11px monospace;opacity:.8}@media(max-width:850px){.market{grid-template-columns:repeat(2,1fr)}.gridmain{grid-template-columns:1fr}.departments{grid-template-columns:repeat(2,1fr)}.bottom{grid-template-columns:1fr}.brand{font-size:19px}}@media(prefers-reduced-motion:reduce){.sprite{animation:none}}</style></head><body><div class="city"><div class="skyline"><div class="building" style="height:58%"></div><div class="building" style="height:78%"></div><div class="building" style="height:67%"></div><div class="building" style="height:95%"></div><div class="building" style="height:70%"></div><div class="building" style="height:88%"></div><div class="building" style="height:63%"></div><div class="building" style="height:98%"></div><div class="building" style="height:75%"></div><div class="building" style="height:86%"></div><div class="building" style="height:55%"></div><div class="building" style="height:91%"></div><div class="building" style="height:68%"></div><div class="building" style="height:83%"></div><div class="building" style="height:73%"></div><div class="building" style="height:96%"></div><div class="building" style="height:60%"></div><div class="building" style="height:85%"></div><div class="building" style="height:71%"></div><div class="building" style="height:90%"></div></div><div class="street"></div><span class="sprite" style="--start:4%;--speed:12s;--shirt:#44d5e7" aria-hidden="true"></span><span class="sprite" style="--start:17%;--speed:9s;--shirt:#a987ed" aria-hidden="true"></span><span class="sprite" style="--start:32%;--speed:15s;--shirt:#dfbd73" aria-hidden="true"></span><span class="sprite" style="--start:46%;--speed:10s;--shirt:#4bdebc" aria-hidden="true"></span><span class="sprite" style="--start:62%;--speed:13s;--shirt:#a987ed" aria-hidden="true"></span><span class="sprite" style="--start:79%;--speed:11s;--shirt:#44d5e7" aria-hidden="true"></span><span class="sprite" style="--start:91%;--speed:14s;--shirt:#dfbd73" aria-hidden="true"></span></div><main class="wrap"><header class="glass topline"><div><div class="brand">PONCE & NOVA <span class="purple">1.0</span></div><div class="small">AI TRADING HQ · TRANSPARENT PIXELSTAD</div></div><div class="small">● <span class="green">Design-demo</span> · Ingen livehandel</div></header><section class="market"><div class="glass tile"><strong>Stockholm OMX</strong><div class="value">—</div><span class="muted">Marknadsdata ej ansluten</span></div><div class="glass tile"><strong>New York</strong><div class="value">—</div><span class="muted">Marknadsdata ej ansluten</span></div><div class="glass tile"><strong>Toronto</strong><div class="value">—</div><span class="muted">Marknadsdata ej ansluten</span></div><div class="glass tile"><strong>Guld</strong><div class="value">—</div><span class="muted">Marknadsdata ej ansluten</span></div><div class="glass tile"><strong>Världsklockor</strong><div class="value"><span id="clock">--:--</span></div><span class="muted">Stockholm · lokal tid</span></div></section><section class="gridmain"><article class="glass panel"><h2>PONCE · Kontrollrum</h2><div class="portrait">P</div><p>Överblick över strategi, prioriteringar och beslut. Kontrollrummet är kvar, men norrskensbilden är borttagen.</p><p class="status">● Visuell prototyp · Ej uppkopplad</p><button class="action" data-label="Ponce">Öppna kontrollrum</button></article><article class="glass panel"><h2>GEMENSAM CHATT</h2><div class="messages" id="messages"><div class="message"><b>Nova:</b> Välkommen till vårt nya huvudkontor.</div><div class="message"><b>System:</b> Agenterna rör sig i pixelstaden bakom panelerna.</div></div><form class="chatrow" id="chat"><input id="input" placeholder="Skriv ett meddelande ..." aria-label="Meddelande"><button>Skicka</button></form><p class="muted">Meddelanden sparas bara i denna öppna webbsida.</p></article><article class="glass panel"><h2>NOVA · AI-assistent</h2><div class="portrait" style="border-color:#bb8fff">N</div><p>Analys, övervakning och förslag samlas här när riktiga datakällor ansluts. Just nu är agentstatus illustrativ.</p><p class="status">● Visuell prototyp · Ej uppkopplad</p><button class="action" data-label="Nova">Öppna Nova</button></article></section><section class="departments"><button class="dept" style="--accent:#49e7ec" data-label="ANALYS"><b>ANALYS</b><span>Marknadsbevakning och signaler</span></button><button class="dept" style="--accent:#b79bff" data-label="HANDEL"><b>HANDEL</b><span>Paper trading och orderflöde</span></button><button class="dept" style="--accent:#ffc46d" data-label="RISK & EKONOMI"><b>RISK & EKONOMI</b><span>Riskgränser och kapital</span></button><button class="dept" style="--accent:#63d5ff" data-label="TEKNIK & UTVECKLING"><b>TEKNIK & UTVECKLING</b><span>Integrationer och systemstatus</span></button><button class="dept" style="--accent:#65edaa" data-label="UTVECKLING"><b>UTVECKLING</b><span>Strategier och förbättringar</span></button></section><section class="bottom"><article class="glass panel"><h2>TILLGÄNGLIGT KAPITAL</h2><p class="value">— SEK</p><p class="muted">Anslut paper trading för att visa saldo.</p></article><article class="glass panel"><h2>DAGENS HANDELSFÖRSLAG</h2><p>Inga verifierade förslag ännu.</p><p class="muted">Marknadsanalys behöver riktiga datakällor.</p></article><article class="glass panel"><h2>SENASTE AKTIVITETER</h2><p>✓ Transparent pixelstad laddad</p><p>✓ Paneler och lokal chatt aktiva</p></article></section><p class="footer">Visuell design-demo. Inga livekurser, verkliga agenter, handelsorder eller anslutna konton.</p></main><div class="floorlabel">8-BIT CITY · AGENTER I RÖRELSE</div><div class="modal" id="modal"><section class="glass"><h2 id="mt"></h2><p>Det här är en klickbar designprototyp. Funktionen kopplas till riktiga datakällor och agenter i nästa utvecklingssteg.</p><button class="action" id="close">Stäng</button></section></div><script>document.querySelectorAll('[data-label]').forEach(b=>b.addEventListener('click',()=>{document.getElementById('mt').textContent=b.dataset.label;document.getElementById('modal').classList.add('open')}));document.getElementById('close').onclick=()=>document.getElementById('modal').classList.remove('open');document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')e.currentTarget.classList.remove('open')};document.getElementById('chat').onsubmit=e=>{e.preventDefault();let i=document.getElementById('input');if(!i.value.trim())return;let m=document.createElement('div');m.className='message';let b=document.createElement('b');b.textContent='Du: ';m.append(b,document.createTextNode(i.value));document.getElementById('messages').append(m);i.value='';m.scrollIntoView({block:'nearest'})};function tick(){document.getElementById('clock').textContent=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit'}).format(new Date())}tick();setInterval(tick,30000);</script></body></html>
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#041323" />
+    <title>Ponce & Nova — Trading HQ</title>
+    <link rel="icon" href="assets/favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#dashboard">Till dashboard</a>
+    <div class="city" aria-hidden="true">
+      <div class="skyline" id="skyline"></div>
+      <div class="street"></div>
+      <div class="office">
+        <div class="room">
+          <span>MÖTESRUM</span><i class="table"></i><i class="walker"></i>
+        </div>
+        <div class="room">
+          <span>FIKARUM</span><i class="coffee">☕</i
+          ><i class="walker violet"></i>
+        </div>
+        <div class="room"><span>WC · WC</span><i class="doors"></i></div>
+        <div class="room">
+          <span>AI-LABB</span><i class="servers"></i><i class="walker mint"></i>
+        </div>
+      </div>
+    </div>
+    <main id="dashboard" class="wrap">
+      <header class="topline">
+        <div>
+          <h1>PONCE <span>&</span> NOVA <small>1.0</small></h1>
+          <p>AI TRADING HQ / PIXEL CITY</p>
+        </div>
+        <div class="mode">
+          <span id="runtime-status">● Lokal simulering · Ingen livehandel</span>
+          <button data-action="agents">Alla agenter</button>
+          <button data-action="health">Driftstatus</button>
+          <button data-action="sync">Lagring & synkning</button>
+          <button data-action="office">Visa kontoret</button>
+          <button id="motion" aria-pressed="false">Pausa stad</button>
+        </div>
+      </header>
+      <section class="market" aria-label="Marknadsöversikt och världsklockor">
+        <button
+          class="glass tile"
+          data-action="exchange"
+          data-name="Stockholm (OMX)"
+        >
+          <span>🇸🇪 Stockholm (OMX)</span
+          ><time data-zone="Europe/Stockholm">—</time
+          ><small data-date="Europe/Stockholm"></small><strong>—</strong><i></i
+          ><small>Börskälla ej ansluten</small>
+        </button>
+        <button
+          class="glass tile"
+          data-action="exchange"
+          data-name="New York (NYSE/NASDAQ)"
+        >
+          <span>🇺🇸 New York (NYSE/NASDAQ)</span
+          ><time data-zone="America/New_York">—</time
+          ><small data-date="America/New_York"></small><strong>—</strong><i></i
+          ><small>Börskälla ej ansluten</small>
+        </button>
+        <button
+          class="glass tile"
+          data-action="exchange"
+          data-name="Toronto (TSX)"
+        >
+          <span>🇨🇦 Toronto (TSX)</span><time data-zone="America/Toronto">—</time
+          ><small data-date="America/Toronto"></small><strong>—</strong><i></i
+          ><small>Börskälla ej ansluten</small>
+        </button>
+        <button
+          class="glass tile gold"
+          data-action="exchange"
+          data-name="Guld (XAU/USD)"
+        >
+          <span>▰ Guld (XAU/USD)</span
+          ><time data-zone="Europe/Stockholm">—</time
+          ><small>Stockholmstid</small><strong>—</strong><i></i
+          ><small>Guldkälla ej ansluten</small>
+        </button>
+        <article class="glass world">
+          <h2>VÄRLDSKLOCKOR</h2>
+          <div>
+            <span>Stockholm</span><time data-zone="Europe/Stockholm">—</time>
+          </div>
+          <div>
+            <span>New York</span><time data-zone="America/New_York">—</time>
+          </div>
+          <div>
+            <span>Toronto</span><time data-zone="America/Toronto">—</time>
+          </div>
+          <div><span>London</span><time data-zone="Europe/London">—</time></div>
+          <div><span>Tokyo</span><time data-zone="Asia/Tokyo">—</time></div>
+          <button class="text-button" data-action="calendar">
+            Kommande händelser →
+          </button>
+        </article>
+      </section>
+      <section class="gridmain" aria-label="Kontrollrum och chatt">
+        <article class="glass panel agent">
+          <div class="agent-top">
+            <div
+              class="portrait ponce"
+              role="img"
+              aria-label="Ponce, porträtt från godkänd design"
+            ></div>
+            <div class="agent-copy">
+              <h2>PONCE</h2>
+              <p>VD · Strategi & analys</p>
+              <p class="status">● Lokal regelassistent</p>
+              <div class="wave" aria-hidden="true">▂▃▅▃▆▅▇▃▅▆▃▂</div>
+              <div class="agent-stats">
+                <h3>AGENTER & ANALYS</h3>
+                <p>◉ <b>7</b> definierade agentroller</p>
+                <p>↻ <b id="analysis-count">0</b> analyser denna session</p>
+                <p>◇ <b id="decision-count">0</b> paper-order lokalt</p>
+              </div>
+            </div>
+          </div>
+          <nav class="agent-actions" aria-label="Ponces verktyg">
+            <button data-action="analysis"><span>▥</span>Analys</button
+            ><button data-action="trade"><span>⟳</span>Handel</button
+            ><button data-action="strategy"><span>◎</span>Strategi</button
+            ><button data-action="meeting"><span>♟</span>Agentmöte</button
+            ><button data-action="board"><span>▤</span>Möte</button
+            ><button data-action="log"><span>▧</span>Beslutslogg</button>
+          </nav>
+        </article>
+        <article class="glass panel chat-panel">
+          <h2 class="sr-only">Gemensam chatt</h2>
+          <div class="chat-tabs" role="group" aria-label="Välj chatt">
+            <button data-channel="shared" aria-pressed="true">
+              ▣ Gemensam chatt</button
+            ><button data-channel="agents" aria-pressed="false">
+              ♧ Ponce & Nova</button
+            ><span title="Du och två lokala assistentroller">♟ 3</span>
+          </div>
+          <div
+            id="messages"
+            class="messages"
+            role="log"
+            aria-label="Chattmeddelanden"
+            aria-live="polite"
+            tabindex="0"
+          ></div>
+          <button id="chat-latest" class="text-button" type="button" hidden>↓ Till senaste meddelandet</button>
+          <div id="chat-ai-controls" hidden>
+            <label
+              ><input id="use-ai" type="checkbox" /> AI-svar (<span
+                id="ai-provider-name"
+                >ej ansluten</span
+              >)</label
+            >
+            <label
+              >Agent
+              <select id="chat-agent" aria-label="Agent för AI-svar"></select
+            ></label>
+          </div>
+          <p id="ai-status" class="micro" role="status"></p>
+          <button id="cancel-board" type="button" hidden>
+            Avbryt AI-mötet
+          </button>
+          <form id="chat" class="chatrow">
+            <button
+              type="button"
+              data-action="chat-help"
+              aria-label="Chattkommandon"
+            >
+              ＋</button
+            ><label class="sr-only" for="message"
+              >Meddelande till Ponce och Nova</label
+            ><input
+              id="message"
+              name="message"
+              maxlength="2000"
+              placeholder="Skriv till Ponce och Nova…"
+              autocomplete="off"
+              required
+            /><button type="submit" aria-label="Skicka meddelande">➤</button>
+          </form>
+          <div class="meeting-actions">
+            <button data-action="voice" data-name="Ponce">
+              ♩ Prata med Ponce</button
+            ><button data-action="board">
+              ♧ Starta styrelsemöte <small>(Ponce & Nova)</small></button
+            ><button data-action="voice" data-name="Nova">
+              ♩ Prata med Nova
+            </button>
+          </div>
+          <p class="micro" id="chat-note">
+            Lokal chatt · Regelbaserade svar, ingen ansluten AI. Sparas i denna
+            webbläsare.
+          </p>
+        </article>
+        <article class="glass panel agent nova-panel">
+          <div class="agent-top">
+            <div
+              class="portrait nova"
+              role="img"
+              aria-label="Nova, porträtt från godkänd design"
+            ></div>
+            <div class="agent-copy">
+              <h2>NOVA</h2>
+              <p>Oberoende kontroll</p>
+              <p class="status">● Lokal regelassistent</p>
+              <div class="wave" aria-hidden="true">▂▃▅▃▆▅▇▃▅▆▃▂</div>
+              <blockquote>
+                ”Granskar data<br />och simuleringens risker.”
+              </blockquote>
+            </div>
+          </div>
+          <button class="risk-summary" data-action="risk">
+            <span class="shield">◆</span
+            ><span
+              ><small>RISKINDIKATOR</small
+              ><strong id="risk-summary">Ej bedömd</strong
+              ><small>Öppna för underlag →</small></span
+            ><span class="risk-ring" aria-hidden="true"></span>
+          </button>
+          <nav class="agent-actions nova-actions" aria-label="Novas verktyg">
+            <button data-action="risk"><span>◆</span>Riskkontroll</button
+            ><button data-action="quality"><span>▤</span>Kvalitet</button
+            ><button data-action="scenario"><span>♧</span>Scenarier</button
+            ><button data-action="meeting"><span>♟</span>Möte</button
+            ><button data-action="report"><span>▣</span>Rapport</button>
+          </nav>
+        </article>
+      </section>
+      <nav class="departments" aria-label="Avdelningar">
+        <button class="dept" data-action="analysis">
+          <span class="dept-icon">▥</span
+          ><span
+            ><b>ANALYS</b
+            ><small>Hittar och analyserar<br />möjligheter</small></span
+          ><span class="arrow">→</span></button
+        ><button class="dept trade-dept" data-action="trade">
+          <span class="dept-icon">⟳</span
+          ><span
+            ><b>HANDEL</b
+            ><small>Genomför affärer<br />(paper trading)</small></span
+          ><span class="arrow">→</span></button
+        ><button class="dept risk-dept" data-action="risk">
+          <span class="dept-icon">◆</span
+          ><span
+            ><b>RISK & EKONOMI</b
+            ><small>Övervakar risker<br />och resultat</small></span
+          ><span class="arrow">→</span></button
+        ><button class="dept tech-dept" data-action="tech">
+          <span class="dept-icon">⚙</span
+          ><span
+            ><b>TEKNIK & UTVECKLING</b
+            ><small>Driver system<br />och AI-agenter</small></span
+          ><span class="arrow">→</span></button
+        ><button class="dept dev-dept" data-action="development">
+          <span class="dept-icon">↗</span
+          ><span
+            ><b>UTVECKLING</b
+            ><small>Lärdomar, förbättringar<br />och statistik</small></span
+          ><span class="arrow">→</span>
+        </button>
+      </nav>
+      <section
+        class="bottom"
+        aria-label="Kapital, handelsförslag och aktiviteter"
+      >
+        <article class="glass panel capital">
+          <h2>▰ TILLGÄNGLIGT KAPITAL <small>(PAPER TRADING · USD)</small></h2>
+          <div class="capital-grid">
+            <div>
+              <p id="cash" class="value">—</p>
+              <p id="profit" class="green">—</p>
+              <p class="micro">Startkapital: 10 000 simulerade USD</p>
+              <p class="micro" id="portfolio-feed-status">Innehav värderas bara med färska kurser.</p>
+            </div>
+            <dl>
+              <div>
+                <dt>Realiserat resultat</dt>
+                <dd id="realized">—</dd>
+              </div>
+              <div>
+                <dt>Antal affärer</dt>
+                <dd id="trade-count">0</dd>
+              </div>
+              <div>
+                <dt>Vinnande avslut</dt>
+                <dd id="wins">0</dd>
+              </div>
+              <div>
+                <dt>Förlorande avslut</dt>
+                <dd id="losses">0</dd>
+              </div>
+            </dl>
+          </div>
+          <button class="text-button" data-action="portfolio">
+            Visa portfölj och historik →
+          </button>
+        </article>
+        <article class="glass panel">
+          <div class="section-heading">
+            <h2>☷ DAGENS HANDELSFÖRSLAG</h2>
+            <button class="text-button" data-action="analysis">
+              Visa alla →
+            </button>
+          </div>
+          <div id="suggestions"></div>
+          <p class="micro">
+            Mekanisk bevakningslista från 24 h-rörelser. Inga köpråd.
+          </p>
+        </article>
+        <article class="glass panel">
+          <div class="section-heading">
+            <h2>♟ SENASTE AKTIVITETER</h2>
+            <button class="text-button" data-action="log">Visa alla →</button>
+          </div>
+          <ol id="activities" class="activities"></ol>
+        </article>
+      </section>
+      <section class="glass crypto-panel" aria-labelledby="crypto-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="crypto-title">KRYPTO · MARKNADSBEVAKNING</h2>
+            <p class="muted">
+              USD · Verkliga marknadsdata · automatisk hämtning cirka varje minut
+            </p>
+          </div>
+          <button id="refresh">↻ Uppdatera data</button>
+        </div>
+        <div class="filter-row">
+          <label><input id="auto-market" type="checkbox" checked /> Uppdatera automatiskt</label>
+          <div class="filters" role="group" aria-label="Tokenkategori">
+            <button data-category="large" aria-pressed="true">
+              Stora tokens</button
+            ><button data-category="small" aria-pressed="false">
+              Mindre tokens</button
+            ><button data-category="new" aria-pressed="false">
+              Nya pooler · Ethereum
+            </button>
+          </div>
+          <label
+            >Sök i hämtad lista
+            <input id="search" type="search" placeholder="Namn eller symbol"
+          /></label>
+        </div>
+        <p id="data-status" role="status">Väntar på marknadsdata…</p>
+        <p id="data-source" class="micro"></p>
+        <div
+          class="table-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="Kryptokurser"
+        >
+          <table>
+            <caption class="sr-only">
+              Hämtade kryptotokens och prisuppgifter
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Token</th>
+                <th scope="col">Pris (USD)</th>
+                <th scope="col">24 h</th>
+                <th scope="col">Börsvärde / poollikviditet</th>
+                <th scope="col">Handling</th>
+              </tr>
+            </thead>
+            <tbody id="coins"></tbody>
+          </table>
+        </div>
+      </section>
+      <footer>
+        <p id="mode-note">
+          Ingen verklig handel. Paper trading använder offentliga referenskurser med
+          fördröjning och valbara simulerade kostnader, inga garanterade avslutspriser.
+          Nya pooler innebär särskilt hög risk.
+        </p>
+        <span
+          >Källor: <a href="https://www.coingecko.com/">CoinGecko</a> ·
+          <a href="https://www.geckoterminal.com/">GeckoTerminal</a> ·
+          <a href="https://www.coinbase.com/">Coinbase Exchange</a> ·
+          <a href="https://finance.yahoo.com/">Yahoo Finance</a> ·
+          <a href="https://www.bls.gov/schedule/">BLS</a></span
+        ><button class="text-button" data-action="privacy">
+          Lagring & integritet</button
+        ><span id="storage-status" role="status"></span>
+        <form id="logout" method="post" action="/logout" hidden>
+          <button>Logga ut från testmiljön</button>
+        </form>
+      </footer>
+    </main>
+    <dialog id="dialog" aria-labelledby="dialog-title">
+      <div class="dialog-heading">
+        <h2 id="dialog-title"></h2>
+        <button id="close-dialog" aria-label="Stäng dialog">✕</button>
+      </div>
+      <div id="dialog-content"></div>
+    </dialog>
+    <noscript
+      >Aktivera JavaScript för klockor, marknadsdata, chatt och paper
+      trading.</noscript
+    >
+  </body>
+</html>
