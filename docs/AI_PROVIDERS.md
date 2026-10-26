@@ -42,3 +42,7 @@ The existing OpenAI Responses adapter remains available with `AI_PROVIDER=openai
 ## Tests
 
 `npm test` covers provider selection, missing key and free-tier confirmation, paid-mode rejection, model allowlists, secure request shape, quota behavior without fallback, filtered/blocked/truncated output, and protected server integration. `python3 tests/server_browser_test.py` exercises both provider adapters with test-only transport, correct provider labels, opt-in chat, seven-role board, cancellation during a quota pause and unchanged paper balances. A real authenticated Nova reply through Gemini 3.8 Flash was verified on the isolated Render test service after the owner supplied the key and confirmed Free tier. The response explicitly identified its simulated role and lack of real-order authority. This is an integration check, not an evaluation of every role or model quality.
+
+### Simple agent-room live result (2026-10-26)
+
+All seven roles produced real 3.1 Flash-Lite replies in the authenticated simple room. One first-pass role call returned transient 503 and later succeeded on a manual test. Additional follow-up checks hit overload/timeout, so free availability remains intermittent and semantic recall is not claimed live-verified. The room surfaces these failures as System messages. It sends only bounded conversation context in agent-lab mode and explicitly excludes market/portfolio inputs. The switch from 3.8 was a deliberate deployment setting, not a quota-triggered automatic fallback.
