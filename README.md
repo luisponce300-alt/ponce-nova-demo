@@ -4,6 +4,10 @@ A private paper-trading test dashboard built from the approved design and Issue 
 
 [Test service](https://ponce-nova-test.onrender.com) · [PR #2](https://github.com/luisponce300-alt/ponce-nova-demo/pull/2) · [Swedish serious-testing guide](docs/SERIOUS_TESTING.md)
 
+## Simple agent test room
+
+Open [/agents](https://ponce-nova-test.onrender.com/agents) for Ponce, Nova and the five departmental roles in one lightweight chat page. It needs only the existing authentication and AI configuration: no market or database requests run on that page. Individual and group conversations remain in separate local browser storage, with optional download. [Swedish guide](docs/AGENT_ROOM.md).
+
 ## Private server
 
 The Node server provides password/signed-session authentication, same-origin writes, fixed upstream hosts, input/time/concurrency limits, real public market feeds and seven on-demand AI roles. No real orders, accounts, autonomous agents or model training are connected.
@@ -12,7 +16,7 @@ Install with `npm ci --include=dev --ignore-scripts --cache /tmp/ponce-npm-cache
 
 - `MARKET_FEEDS_ENABLED=true`: enable Coinbase USD tickers/order books, holdings refresh independent of the selected tab, index/gold-futures overview and BLS calendar adapter.
 - `DATABASE_URL`: optional Neon PostgreSQL connection. Server-only, TLS certificate verification enforced. Tables and previous-version backups initialize automatically. Invalid/missing configuration is visible in Driftstatus and leaves local mode available.
-- AI uses Gemini 3.8 Flash in owner-confirmed Free tier, no paid fallback. See [provider setup and limits](docs/AI_PROVIDERS.md). No key belongs in browser code or Git.
+- AI uses Gemini 3.1 Flash-Lite in owner-confirmed Free tier, no paid fallback. See [provider setup and limits](docs/AI_PROVIDERS.md). No key belongs in browser code or Git.
 
 ## Data and simulation
 

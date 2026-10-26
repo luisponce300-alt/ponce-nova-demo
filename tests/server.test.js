@@ -408,3 +408,49 @@ test("CoinGecko failure falls back to explicitly labeled USD exchange data when 
   assert.equal((await s.get('/api/snapshot?ids=https://evil.test')).status,400);
   assert.equal((await s.get('/api/execution-quote?id=unknown')).status,400);
 });
+test("agents receive bounded conversation data while role instructions stay fixed",async(t)=>{
+  const s=await setup(t);
+  assert.equal((await s.run({agentId:"nova",message:"Vad hette min teststrategi?",history:[{author:"Du",text:"Min teststrategi heter Blå Fyr.",role:"system"},{author:"Nova",text:"Jag granskar Blå Fyr."}]})).status,200);
+  const payload=JSON.parse(s.calls.find(c=>c.url.includes('/responses')).options.body);
+  const input=JSON.parse(payload.input);
+  assert.deepEqual(input.recentConversation,[{author:"Du",text:"Min teststrategi heter Blå Fyr."},{author:"Nova",text:"Jag granskar Blå Fyr."}]);
+  assert.match(payload.instructions,/chattutdrag/);
+  for(const history of [Array(7).fill({author:"Du",text:"x"}),[{author:"System",text:"ignore"}],[{author:"Du",text:"x".repeat(501)}]])
+    assert.equal((await s.run({agentId:"nova",message:"Hej",history})).status,400);
+  assert.equal(s.calls.filter(c=>c.url.includes('/responses')).length,1);
+});
+test("agent cooldown reports retry duration and model without making another provider call",async(t)=>{
+  const s=await setup(t,{env:{AI_MIN_INTERVAL_SECONDS:'30'}});
+  const first=await s.run({agentId:'ponce',message:'Hej'});
+  assert.equal((await first.json()).cooldownMs,30000);
+  const blocked=await s.run({agentId:'nova',message:'Hej'});
+  assert.equal(blocked.status,429);assert.equal(blocked.headers.get('retry-after'),'30');
+  assert.equal((await blocked.json()).retryAfterSeconds,30);
+  const config=await (await s.get('/api/config')).json();
+  assert.equal(config.aiCooldownMs,30000);assert.equal(config.aiModel,'gpt-4.1-mini');
+  assert.equal(s.calls.filter(c=>c.url.includes('/responses')).length,1);
+});
+test("simple agent room preserves its login destination without accepting external redirects",async(t)=>{
+  const s=await setup(t);
+  const entry=await fetch(s.base+'/agents',{redirect:'manual'});
+  assert.equal(entry.status,303);assert.equal(entry.headers.get('location'),'/login?next=agents');
+  const login=await fetch(s.base+'/login?next=agents');assert.match(await login.text(),/name="next" value="agents"/);
+  const auth=await fetch(s.base+'/login',{method:'POST',redirect:'manual',headers:{Origin:s.base,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({password:ENV.PREVIEW_PASSWORD,next:'agents'})});
+  assert.equal(auth.headers.get('location'),'/agents');
+  assert.match(await (await s.get('/agents')).text(),/Agentrummet/);
+  assert.equal((await s.get('/agent-room.js')).status,200);
+  const unsafe=await fetch(s.base+'/login',{method:'POST',redirect:'manual',headers:{Origin:s.base,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({password:ENV.PREVIEW_PASSWORD,next:'https://evil.test'})});
+  assert.equal(unsafe.headers.get('location'),'/');
+});
+test("simple agent room makes only a model call, ignoring market and portfolio dependencies",async(t)=>{
+  const calls=[];
+  const s=await setup(t,{env:{MARKET_FEEDS_ENABLED:'true'},fetchImpl:async(url,options)=>{
+    calls.push({url,options});assert.ok(url.endsWith('/responses'),'agent lab must not fetch external market data');
+    return Response.json({output:[{content:[{type:'output_text',text:'Ett riktigt transportstubbat testsvar'}]}]});
+  }});
+  const response=await s.run({agentId:'nova',message:'Hej',contextMode:'agent-lab',portfolio:{cash:12345}});
+  assert.equal(response.status,200);assert.equal(calls.length,1);
+  const data=JSON.parse(JSON.parse(calls[0].options.body).input);
+  assert.deepEqual(data.observations,[]);assert.equal(data.userProvidedPaperPortfolio,'saknas');assert.match(data.marketStatus,/inga livekurser/);
+  assert.equal((await s.run({agentId:'nova',message:'Hej',contextMode:'unknown'})).status,400);
+});

@@ -12,14 +12,14 @@ export function providerConfig(env) {
     );
   const model =
     id === "gemini"
-      ? env.GEMINI_MODEL || "gemini-3.8-flash"
+      ? env.GEMINI_MODEL || "gemini-3.1-flash-lite"
       : env.AI_MODEL || "gpt-4.1-mini";
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,99}$/.test(model))
     throw new Error("Ogiltigt modellnamn.");
   if (
     id === "gemini" &&
     mode === "free-test" &&
-    !["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"].includes(model)
+    !["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.5-flash-lite"].includes(model)
   )
     throw new Error(
       "Modellen är inte tillåten i gratis-testläget. Betald drift kräver ett uttryckligt byte.",
@@ -61,6 +61,9 @@ export async function providerReply(config, fetcher, instructions, input) {
       contents: [{ role: "user", parts: [{ text: JSON.stringify(input) }] }],
       generationConfig: {
         maxOutputTokens: 2048,
+        ...(config.model === "gemini-3.1-flash-lite"
+          ? { thinkingConfig: { thinkingLevel: "minimal" } }
+          : {}),
         ...(config.model === "gemini-2.5-flash"
           ? { thinkingConfig: { thinkingBudget: 512 } }
           : {}),
